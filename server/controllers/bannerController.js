@@ -1,9 +1,9 @@
 const Banner = require('../models/banner');
-const fs = require('fs');
+const { deleteFromR2 } = require('../utils/r2Utils');
 
-const getBanners = async (req, res) => {  
+const getBanners = async (req, res) => {
   try {
-    const data = await Banner.find()    
+    const data = await Banner.find()
     res.status(200).json({ data })
   } catch (error) {
     console.log(error);
@@ -24,7 +24,7 @@ const getStoreBanners = async (req, res) => {
 const addBanner = async (req, res) => {
   try {
     const { title, subtitle, url, description, type, src, status } = req?.body
-    const image = req?.file?.filename
+    const image = req?.file?.key || req?.file?.filename
     if (!image && !src) {
       return res.status(404).json({ message: 'Image/video not found' });
     }
@@ -53,20 +53,14 @@ const getBannerById = async (req, res) => {
 
 const updateBanner = async (req, res) => {
   const { _id, title, subtitle, url, description, type, src, status } = req.body;
-  const image = req?.file?.filename;
+  const image = req?.file?.key || req?.file?.filename;
   try {
     const data = await Banner.findById(_id);
     if (!data) {
       return res.status(404).json({ message: 'Banner not found' });
     }
     if (image && data?.type === "image") {
-      fs.unlink(`public/uploads/${data?.src}`, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-          return;
-        }
-        console.log('Image deleted successfully.');
-      });
+      await deleteFromR2(data?.src);
     }
     await Banner.updateOne({ _id }, {
       $set: { title, subtitle, url, type, src, ...(image && { src: image }), description, status }
@@ -86,13 +80,7 @@ const deleteBanner = async (req, res) => {
       return res.status(404).json({ message: 'Banner not found' });
     }
     if (data?.src && data?.type === "image") {
-      fs.unlink(`public/uploads/${data?.src}`, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-          return;
-        }
-        console.log('Image deleted successfully.');
-      });
+      await deleteFromR2(data?.src);
     }
     res.status(200).json({ message: 'Banner deleted successfully' });
   } catch (error) {

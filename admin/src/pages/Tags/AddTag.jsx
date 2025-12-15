@@ -6,13 +6,63 @@ import Input from "components/Input";
 import { useAddTags } from "queries/StoreQuery";
 import { useNavigate } from "react-router-dom";
 import { useGetSelectProjects } from 'queries/ProductQuery'
+import { motion } from "framer-motion";
+
+// -- Styles --
+const styles = {
+   container: {
+      background: "rgba(255, 255, 255, 0.8)",
+      backdropFilter: "blur(20px)",
+      borderRadius: "20px",
+      padding: "30px",
+      boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+      border: "1px solid rgba(255, 255, 255, 0.18)",
+      maxWidth: "800px",
+      margin: "0 auto",
+   },
+   uploadBox: {
+      width: "100%",
+      minHeight: 200,
+      cursor: "pointer",
+      background: "rgba(255,255,255,0.5)",
+      border: "2px dashed #ccc",
+      borderRadius: "15px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      transition: "all 0.3s ease",
+      padding: "20px",
+      "&:hover": {
+         background: "rgba(255,255,255,0.8)",
+         borderColor: "#11cdef",
+      },
+   },
+   title: {
+      fontSize: "24px",
+      fontWeight: "700",
+      color: "#344767",
+      marginBottom: "20px",
+      textAlign: "center"
+   },
+   sectionTitle: {
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#344767",
+      marginTop: "20px",
+      marginBottom: "10px",
+      borderBottom: "1px solid rgba(0,0,0,0.1)",
+      paddingBottom: "5px"
+   }
+};
 
 const AddTag = () => {
-   const [datas, setData] = useState({})
+   const [datas, setData] = useState({ status: true })
    const { data, isLoading } = useGetSelectProjects({ pageNo: 1, pageCount: 100 });
    const [projects, setProjects] = useState([])
    const navigate = useNavigate()
    const fileInputRef = React.useRef(null);
+
    const handleFileSelect = () => {
       fileInputRef.current.click();
    };
@@ -29,21 +79,12 @@ const AddTag = () => {
 
    const handleSubmit = () => {
       try {
-         if (!datas?.title) {
-            return toast.error("title is required")
-         }
-         if (!datas?.subtitle) {
-            return toast.error("subtitle is required")
-         }
-         if (!projects.length) {
-            return toast.error("projects is required")
-         }
-         if (!datas?.description) {
-            return toast.error("description is required")
-         }
-         if (!datas?.image) {
-            return toast.error("image is required")
-         }
+         if (!datas?.title) return toast.error("Title is required");
+         if (!datas?.subtitle) return toast.error("Subtitle is required");
+         if (!projects.length) return toast.error("At least one project is required");
+         if (!datas?.description) return toast.error("Description is required");
+         if (!datas?.image) return toast.error("Image is required");
+
          const formData = new FormData();
          for (const key in datas) {
             if (datas.hasOwnProperty(key) && key !== "image") {
@@ -51,7 +92,8 @@ const AddTag = () => {
             }
          }
          typeof (datas.image) == 'object' && formData.append("image", datas?.image, datas?.image?.name);
-         projects.forEach((projects) => formData.append('projects', projects._id));
+         projects.forEach((proj) => formData.append('projects', proj._id));
+
          addTags(formData)
             .then((res) => {
                if (res) {
@@ -69,196 +111,154 @@ const AddTag = () => {
    }
 
    return (
-      <PageLayout
-         title={'Add Tags'}
-      >
-         <Box sx={{ flexGrow: 1 }} display={'flex'} justifyContent={'center'}>
-            <Grid container spacing={2} maxWidth={600} py={5}>
-               <Grid item xs={12} sm={6}>
-                  <Input
-                     required
-                     placeholder="Tags Title"
-                     id="title"
-                     name="title"
-                     label="Tags Title"
-                     value={datas?.title || ''}
-                     onChange={handleChange}
-                     fullWidth
-                     autoComplete="Title"
-                     variant="outlined"
-                  />
-               </Grid>
-               <Grid item xs={12} sm={6}>
-                  <Input
-                     required
-                     placeholder="Tags SubTitle"
-                     id="subtitle"
-                     name="subtitle"
-                     label="Tags Subtitle"
-                     value={datas?.subtitle || ''}
-                     onChange={handleChange}
-                     fullWidth
-                     autoComplete="Subtitle"
-                     variant="outlined"
-                  />
-               </Grid>
+      <PageLayout title={'Add Tags'}>
+         <Box sx={{ flexGrow: 1, py: 3 }}>
+            <motion.div
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.5 }}
+            >
+               <Box sx={styles.container}>
+                  <Typography sx={styles.title}>Create New Tag</Typography>
 
-
-               <Grid item xs={12} sm={8}>
-                  <Autocomplete
-                     id="Projects-select"
-                     multiple
-                     options={data?.data || []}
-                     value={projects}
-                     onChange={(event, newValue) => {
-                        setProjects(newValue);
-                     }}
-                     autoHighlight
-                     getOptionLabel={(option) => option.title}
-                     renderOption={(props, option) => (
-                        <Box component="li" sx={{ '& > img': { mr: 2, flexShrink: 0 } }} {...props}>
-                           <img
-                              loading="lazy"
-                              width="20"
-                              src={`${process.env.REACT_APP_API_URL}/uploads/${option?.image}`}
-                           />
-                           <Typography color="inherit" variant="caption">
-                              {option?.title} <br />
-                              {option?.subtitle}
-                           </Typography>
-                           <Typography sx={{ ml: 'auto' }} color={option?.isAvailable ? 'success' : 'error'} variant="caption">
-                              {option?.isAvailable ? 'available' : 'NA'}
-                           </Typography>
-                        </Box>
-                     )}
-                     renderInput={(params) => (
-                        <TextField
-                           {...params}
-                           placeholder="Choose a Projects"
-                           inputProps={{
-                              ...params.inputProps,
-                           }}
+                  <Grid container spacing={3}>
+                     {/* Text Inputs */}
+                     <Grid item xs={12} md={6}>
+                        <Typography sx={styles.sectionTitle}>Details</Typography>
+                        <Input
+                           required
+                           placeholder="Tag Title"
+                           name="title"
+                           value={datas?.title || ''}
+                           onChange={handleChange}
+                           fullWidth
+                           sx={{ mb: 2 }}
                         />
-                     )}
-                  />
-               </Grid>
-
-
-
-               <Grid item xs={12} sm={6}>
-                  <Typography variant="caption">
-                     Tags status &nbsp;
-                  </Typography>
-                  <ToggleButton
-                     value={datas?.status}
-                     selected={datas?.status}
-                     onChange={() => {
-                        setData(prev => ({ ...prev, status: !datas?.status }))
-                     }}
-                  >
-                     {datas?.status ? 'Active' : 'Blocked'}
-                  </ToggleButton>
-               </Grid>
-
-               <Grid item xs={12}>
-                  <Input
-                     id="description"
-                     name="description"
-                     placeholder="Tags Description"
-                     label="Tags Description *"
-                     value={datas?.description || ''}
-                     onChange={handleChange}
-                     fullWidth
-                     autoComplete="Description"
-                     multiline
-                     rows={4}
-                     helperText="Short Description (about 10-20 words)"
-                  />
-               </Grid>
-
-               <Grid item xs={12} >
-                  <Box
-                     sx={{
-                        width: 200,
-                        height: 110,
-                        cursor: "pointer",
-                        backgroundColor: "#D3D3D3",
-                        "&:hover": {
-                           backgroundColor: "#424242",
-                           opacity: [0.9, 0.8, 0.7],
-                        },
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexDirection: "column",
-                     }}
-                     onClick={handleFileSelect}
-                  >
-                     {datas?.image ? (
-                        <img
-                           style={{ width: 240, height: 192, padding: 22 }}
-                           src={typeof (datas?.image) == 'object' ? URL.createObjectURL(datas.image) : `${process.env.REACT_APP_API_URL}/uploads/${datas.image}`}
+                        <Input
+                           required
+                           placeholder="Tag Subtitle"
+                           name="subtitle"
+                           value={datas?.subtitle || ''}
+                           onChange={handleChange}
+                           fullWidth
+                           sx={{ mb: 2 }}
                         />
-                     ) : (
-                        <React.Fragment>
-                           <svg
-                              width="56"
-                              height="56"
-                              viewBox="0 0 56 56"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
+
+                        <Autocomplete
+                           multiple
+                           options={data?.data || []}
+                           value={projects}
+                           onChange={(event, newValue) => setProjects(newValue)}
+                           getOptionLabel={(option) => option.title}
+                           renderInput={(params) => (
+                              <TextField
+                                 {...params}
+                                 placeholder="Select Projects"
+                                 variant="outlined"
+                                 sx={{
+                                    mb: 2,
+                                    "& .MuiOutlinedInput-root": {
+                                       borderRadius: "10px",
+                                       background: "white"
+                                    }
+                                 }}
+                              />
+                           )}
+                           renderOption={(props, option) => (
+                              <Box component="li" sx={{ '& > img': { mr: 2, flexShrink: 0 } }} {...props}>
+                                 <img
+                                    loading="lazy"
+                                    width="20"
+                                    src={`${process.env.REACT_APP_API_URL}/uploads/${option?.image}`}
+                                    alt=""
+                                 />
+                                 <Box>
+                                    <Typography variant="body2">{option?.title}</Typography>
+                                    <Typography variant="caption" color={option?.isAvailable ? 'success.main' : 'error.main'}>
+                                       {option?.isAvailable ? 'Available' : 'NA'}
+                                    </Typography>
+                                 </Box>
+                              </Box>
+                           )}
+                        />
+
+                        <Box display="flex" alignItems="center" gap={2} mb={2}>
+                           <Typography variant="body2" fontWeight="bold">Status:</Typography>
+                           <ToggleButton
+                              value={datas?.status}
+                              selected={datas?.status}
+                              onChange={() => setData(prev => ({ ...prev, status: !datas?.status }))}
+                              size="small"
+                              color="primary"
+                              sx={{ borderRadius: "10px", padding: "5px 20px" }}
                            >
-                              <path
-                                 d="M20.9994 51.3346H34.9994C46.666 51.3346 51.3327 46.668 51.3327 35.0013V21.0013C51.3327 9.33464 46.666 4.66797 34.9994 4.66797H20.9994C9.33268 4.66797 4.66602 9.33464 4.66602 21.0013V35.0013C4.66602 46.668 9.33268 51.3346 20.9994 51.3346Z"
-                                 stroke="#CDCDCD"
-                                 strokeWidth="3"
-                                 strokeLinecap="round"
-                                 strokeLinejoin="round"
-                              />
-                              <path
-                                 d="M21.0007 23.3333C23.578 23.3333 25.6673 21.244 25.6673 18.6667C25.6673 16.0893 23.578 14 21.0007 14C18.4233 14 16.334 16.0893 16.334 18.6667C16.334 21.244 18.4233 23.3333 21.0007 23.3333Z"
-                                 stroke="#CDCDCD"
-                                 strokeWidth="3"
-                                 strokeLinecap="round"
-                                 strokeLinejoin="round"
-                              />
-                              <path
-                                 d="M6.23047 44.2186L17.7338 36.4953C19.5771 35.2586 22.2371 35.3986 23.8938 36.8219L24.6638 37.4986C26.4838 39.0619 29.4238 39.0619 31.2438 37.4986L40.9505 29.1686C42.7705 27.6053 45.7105 27.6053 47.5305 29.1686L51.3338 32.4353"
-                                 stroke="#CDCDCD"
-                                 strokeWidth="3"
-                                 strokeLinecap="round"
-                                 strokeLinejoin="round"
-                              />
-                           </svg>
-                           <Typography sx={{ mt: 1, fontSize: 13 }}>
-                              Upload Thumbnail
-                           </Typography>
-                        </React.Fragment>
-                     )}
-                     <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={handleFileChange}
-                     />
-                  </Box>
-               </Grid>
-               <Grid item xs={12}>
-                  <Button onClick={handleSubmit} disabled={loading}>Add Tags</Button>
-               </Grid>
-               <Grid item xs={12}>
-                  <Alert color="primary" severity="info" sx={{ mt: 3, fontSize: 13 }}>
-                     <ul style={{ margin: "0", padding: "0" }}>
-                        <li> Make your thumbnail 1280 by 720 pixels (4:5 ratio)</li>
-                        <li>Ensure that your thumbnail is less than 2MB</li>
-                        <li>Use a JPG, PNG, or JPEG file format</li>
-                     </ul>
-                  </Alert>
-               </Grid>
-            </Grid>
-         </Box>
+                              {datas?.status ? 'Active' : 'Blocked'}
+                           </ToggleButton>
+                        </Box>
+                     </Grid>
 
+                     {/* Image Upload */}
+                     <Grid item xs={12} md={6}>
+                        <Typography sx={styles.sectionTitle}>Tag Image</Typography>
+                        <Box sx={styles.uploadBox} onClick={handleFileSelect}>
+                           {datas?.image ? (
+                              <img
+                                 style={{ maxWidth: "100%", maxHeight: 180, objectFit: "contain", borderRadius: "10px" }}
+                                 src={typeof (datas?.image) == 'object' ? URL.createObjectURL(datas.image) : datas.image}
+                                 alt="Tag Preview"
+                              />
+                           ) : (
+                              <>
+                                 <Box component="i" className="ni ni-cloud-upload-96" fontSize="40px" color="#aaa" mb={1} />
+                                 <Typography variant="body2" color="textSecondary" fontWeight="bold">
+                                    Click to Upload Image
+                                 </Typography>
+                                 <Typography variant="caption" color="textSecondary">
+                                    Recommended: 1280x720 (4:5)
+                                 </Typography>
+                              </>
+                           )}
+                           <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              style={{ display: "none" }}
+                              onChange={handleFileChange}
+                           />
+                        </Box>
+                     </Grid>
+
+                     {/* Description */}
+                     <Grid item xs={12}>
+                        <Typography sx={styles.sectionTitle}>Description</Typography>
+                        <Input
+                           name="description"
+                           placeholder="Write a short description..."
+                           value={datas?.description || ''}
+                           onChange={handleChange}
+                           fullWidth
+                           multiline
+                           rows={3}
+                        />
+                     </Grid>
+
+                     {/* Submit Button */}
+                     <Grid item xs={12} mt={2}>
+                        <Button
+                           onClick={handleSubmit}
+                           disabled={loading}
+                           variant="contained"
+                           color="info"
+                           fullWidth
+                           sx={{ py: 1.5, fontSize: "16px", borderRadius: "10px", boxShadow: "0 4px 14px 0 rgba(0,188,212,0.39)" }}
+                        >
+                           {loading ? "Creating..." : "Create Tag"}
+                        </Button>
+                     </Grid>
+                  </Grid>
+               </Box>
+            </motion.div>
+         </Box>
       </PageLayout>
    )
 }

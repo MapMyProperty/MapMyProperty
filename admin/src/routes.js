@@ -13,6 +13,7 @@ import Box from "components/Box";
 import Blogs from "pages/Blogs";
 import Sections from "pages/Sections";
 import Tags from "pages/Tags";
+import Analytics from "pages/Analytics";
 
 
 const routes = [
@@ -31,6 +32,14 @@ const routes = [
     route: "/contact",
     icon: <Box component="i" color="dark" fontSize="14px" className="ni ni-single-02" />,
     component: <Contact />,
+  },
+  {
+    type: "route",
+    name: "Analytics",
+    key: "analytics",
+    route: "/analytics",
+    icon: <Box component="i" color="primary" fontSize="14px" className="ni ni-chart-bar-32" />,
+    component: <Analytics />,
   },
   {
     type: "route",

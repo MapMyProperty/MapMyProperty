@@ -1,4 +1,5 @@
 const Projects = require("../models/projects");
+const { deleteFromR2 } = require('../utils/r2Utils');
 const Category = require("../models/category");
 const Builders = require("../models/builders");
 const Tags = require("../models/tags");
@@ -141,7 +142,7 @@ const addProject = async (req, res) => {
         name,
         rating: reviewsRatingArray[index],
         review: reviewsReviewArray[index],
-        image: req.files.reviews && req.files.reviews[index].filename,
+        image: req.files.reviews && (req.files.reviews[index]?.key || req.files.reviews[index]?.filename),
       }));
 
       testimonialValue = configurationInside[0]?.name
@@ -152,42 +153,42 @@ const addProject = async (req, res) => {
     const masterPlan = {
       title: masterPlanTitle,
       desc: masterPlanDesc,
-      src: req.files.masterPlan && req.files.masterPlan[0].filename,
+      src: req.files.masterPlan && (req.files.masterPlan[0]?.key || req.files.masterPlan[0]?.filename),
     };
     const imageGallery = Array.isArray(imageGalleryTitle)
       ? imageGalleryTitle.map((item, i) => ({
-          title: item,
-          desc: imageGalleryDesc[i],
-          src: req.files.imageGallery && req.files.imageGallery[i].filename,
-        }))
+        title: item,
+        desc: imageGalleryDesc[i],
+        src: req.files.imageGallery && (req.files.imageGallery[i]?.key || req.files.imageGallery[i]?.filename),
+      }))
       : {
-          title: imageGalleryTitle,
-          desc: imageGalleryDesc,
-          src: req.files.imageGallery && req.files.imageGallery[0].filename,
-        };
+        title: imageGalleryTitle,
+        desc: imageGalleryDesc,
+        src: req.files.imageGallery && (req.files.imageGallery[0]?.key || req.files.imageGallery[0]?.filename),
+      };
 
     const plans = Array.isArray(plansTitle)
       ? plansTitle.map((item, i) => ({
-          title: item,
-          desc: plansDesc[i],
-          src: req.files.plans && req.files.plans[i].filename,
-        }))
+        title: item,
+        desc: plansDesc[i],
+        src: req.files.plans && (req.files.plans[i]?.key || req.files.plans[i]?.filename),
+      }))
       : {
-          title: plansTitle,
-          desc: plansDesc,
-          src: req.files.plans && req.files.plans[0].filename,
-        };
+        title: plansTitle,
+        desc: plansDesc,
+        src: req.files.plans && (req.files.plans[0]?.key || req.files.plans[0]?.filename),
+      };
     const accommodation = Array.isArray(accommodationUnit)
       ? accommodationUnit.map((item, i) => ({
-          unit: item,
-          area: accommodationArea[i],
-          price: accommodationPrice[i],
-        }))
+        unit: item,
+        area: accommodationArea[i],
+        price: accommodationPrice[i],
+      }))
       : {
-          unit: accommodationUnit,
-          area: accommodationArea,
-          price: accommodationPrice,
-        };
+        unit: accommodationUnit,
+        area: accommodationArea,
+        price: accommodationPrice,
+      };
 
     const projects = new Projects({
       title,
@@ -325,11 +326,11 @@ const updateProject = async (req, res) => {
         review: reviewsReviewArray[index],
         image: Array.isArray(req?.body?.reviewsImagePocision)
           ? req?.body?.reviewsImagePocision[index] === ""
-            ? (k++, req.files.reviews[k - 1].filename)
+            ? (k++, (req.files.reviews[k - 1]?.key || req.files.reviews[k - 1]?.filename))
             : req?.body?.reviewsImagePocision[index]
           : req?.body?.reviewsImagePocision === ""
-          ? req.files.reviews[0].filename
-          : req?.body?.reviewsImagePocision,
+            ? (req.files.reviews[0]?.key || req.files.reviews[0]?.filename)
+            : req?.body?.reviewsImagePocision,
       }));
 
       testimonialValue = configurationInside[0]?.name
@@ -343,54 +344,59 @@ const updateProject = async (req, res) => {
       src: req.files.masterPlan ?? req.body.masterPlan,
     };
 
+    const existingProject = await Projects.findById(_id);
+
     if (req?.files?.masterPlan?.length > 0) {
-      masterPlan.src = req.files.masterPlan[0].filename;
+      if (existingProject?.masterPlan?.src) {
+        await deleteFromR2(existingProject.masterPlan.src);
+      }
+      masterPlan.src = req.files.masterPlan[0].key || req.files.masterPlan[0].filename;
     }
     let m = 0;
     const imageGallery = Array.isArray(imageGalleryTitle)
       ? imageGalleryTitle.map((item, i) => ({
-          title: item,
-          desc: imageGalleryDesc[i],
-          src:
-            req?.body?.imageGalleryPocision[i] === ""
-              ? (m++, req.files.imageGallery[m - 1].filename)
-              : req?.body?.imageGalleryPocision[i],
-        }))
+        title: item,
+        desc: imageGalleryDesc[i],
+        src:
+          req?.body?.imageGalleryPocision[i] === ""
+            ? (m++, (req.files.imageGallery[m - 1]?.key || req.files.imageGallery[m - 1]?.filename))
+            : req?.body?.imageGalleryPocision[i],
+      }))
       : {
-          title: imageGalleryTitle,
-          desc: imageGalleryDesc,
-          src: req.files.imageGallery
-            ? req.files.imageGallery[0].filename
-            : req?.body?.imageGalleryPocision,
-        };
+        title: imageGalleryTitle,
+        desc: imageGalleryDesc,
+        src: req.files.imageGallery
+          ? (req.files.imageGallery[0]?.key || req.files.imageGallery[0]?.filename)
+          : req?.body?.imageGalleryPocision,
+      };
     let s = 0;
     const floorPlans = Array.isArray(floorPlansTitle)
       ? floorPlansTitle.map((item, i) => ({
-          title: item,
-          desc: floorPlansDesc[i],
-          src:
-            req?.body?.floorPlansimagePocision[i] === ""
-              ? (s++, req.files.floorPlans[s - 1].filename)
-              : req?.body?.floorPlansimagePocision[i],
-        }))
+        title: item,
+        desc: floorPlansDesc[i],
+        src:
+          req?.body?.floorPlansimagePocision[i] === ""
+            ? (s++, (req.files.floorPlans[s - 1]?.key || req.files.floorPlans[s - 1]?.filename))
+            : req?.body?.floorPlansimagePocision[i],
+      }))
       : {
-          title: floorPlansTitle,
-          desc: floorPlansDesc,
-          src: req.files.floorPlans
-            ? req.files.floorPlans[0].filename
-            : req?.body?.floorPlansimagePocision,
-        };
+        title: floorPlansTitle,
+        desc: floorPlansDesc,
+        src: req.files.floorPlans
+          ? (req.files.floorPlans[0]?.key || req.files.floorPlans[0]?.filename)
+          : req?.body?.floorPlansimagePocision,
+      };
     const accommodation = Array.isArray(accommodationUnit)
       ? accommodationUnit.map((item, i) => ({
-          unit: item,
-          area: accommodationArea[i],
-          price: accommodationPrice[i],
-        }))
+        unit: item,
+        area: accommodationArea[i],
+        price: accommodationPrice[i],
+      }))
       : {
-          unit: accommodationUnit,
-          area: accommodationArea,
-          price: accommodationPrice,
-        };
+        unit: accommodationUnit,
+        area: accommodationArea,
+        price: accommodationPrice,
+      };
 
     const projectUpdateResult = await Projects.updateOne(
       { _id },
@@ -453,6 +459,41 @@ const updateProject = async (req, res) => {
 
 const deleteProject = async (req, res) => {
   try {
+    const data = await Projects.findById(req.params.id);
+    if (!data) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Delete Master Plan
+    if (data.masterPlan?.src) {
+      await deleteFromR2(data.masterPlan.src);
+    }
+
+    // Delete Image Gallery
+    if (data.imageGallery && Array.isArray(data.imageGallery)) {
+      for (const img of data.imageGallery) {
+        if (img.src) await deleteFromR2(img.src);
+      }
+    } else if (data.imageGallery?.src) {
+      await deleteFromR2(data.imageGallery.src);
+    }
+
+    // Delete Floor Plans
+    if (data.plans && Array.isArray(data.plans)) {
+      for (const plan of data.plans) {
+        if (plan.src) await deleteFromR2(plan.src);
+      }
+    } else if (data.plans?.src) {
+      await deleteFromR2(data.plans.src);
+    }
+
+    // Delete Testimonials
+    if (data.testimonials && Array.isArray(data.testimonials)) {
+      for (const testimonial of data.testimonials) {
+        if (testimonial.image) await deleteFromR2(testimonial.image);
+      }
+    }
+
     await Projects.deleteOne({ _id: req.params.id });
     res.status(200).json({ message: "projects deleted successfully" });
   } catch (error) {
@@ -578,11 +619,9 @@ const getFilteredProjects = async (req, res) => {
     if (projects.docs.length > 0) {
       res.status(200).json({
         data: projects,
-        message: `Showing 1 - ${
-          projects.docs.length < 10 ? projects.docs.length : 10
-        } of ${projects.totalDocs} ${
-          projects.totalDocs === 1 ? "property" : "properties"
-        }`,
+        message: `Showing 1 - ${projects.docs.length < 10 ? projects.docs.length : 10
+          } of ${projects.totalDocs} ${projects.totalDocs === 1 ? "property" : "properties"
+          }`,
       });
     } else {
       const suggestedProjects = await Projects.paginate(

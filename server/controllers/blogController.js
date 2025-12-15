@@ -1,5 +1,5 @@
 const Blog = require("../models/blogs");
-const fs = require("fs");
+const { deleteFromR2 } = require('../utils/r2Utils');
 
 const getBlogs = async (req, res) => {
   try {
@@ -26,7 +26,7 @@ const getBlogs = async (req, res) => {
 const addBlog = async (req, res) => {
   try {
     const { title, subtitle, url, description, status, type } = req?.body;
-    const image = req?.file?.filename;
+    const image = req?.file?.key || req?.file?.filename;
     if (!image) {
       return res.status(404).json({ message: "Image not found" });
     }
@@ -88,20 +88,14 @@ const getBlogByUrl = async (req, res) => {
 const updateBlog = async (req, res) => {
   const { _id, title, subtitle, url, description, status, isImportant, type } =
     req.body;
-  const image = req?.file?.filename;
+  const image = req?.file?.key || req?.file?.filename;
   try {
     const data = await Blog.findById(_id);
     if (!data) {
       return res.status(404).json({ message: "Blog not found" });
     }
     if (image) {
-      fs.unlink(`public/uploads/${data?.image}`, (err) => {
-        if (err) {
-          console.error("Error deleting image:", err);
-          return;
-        }
-        console.log("Image deleted successfully.");
-      });
+      await deleteFromR2(data?.image);
     }
     await Blog.updateOne(
       { _id },
@@ -134,13 +128,9 @@ const deleteBlog = async (req, res) => {
     if (!data) {
       return res.status(404).json({ message: "Blog not found" });
     }
-    fs.unlink(`public/uploads/${data?.image}`, (err) => {
-      if (err) {
-        console.error("Error deleting image:", err);
-        return;
-      }
-      console.log("Image deleted successfully.");
-    });
+    if (data?.image) {
+      await deleteFromR2(data?.image);
+    }
     res.status(200).json({ message: "Blog deleted successfully" });
   } catch (error) {
     console.log(error);

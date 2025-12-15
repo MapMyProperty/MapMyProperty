@@ -30,6 +30,7 @@ const button = {
     containedSizeLarge: { ...contained.large },
     containedPrimary: { ...contained.primary },
     containedSecondary: { ...contained.secondary },
+    containedInfo: { ...contained.info },
     outlined: { ...outlined.base },
     outlinedSizeSmall: { ...outlined.small },
     outlinedSizeLarge: { ...outlined.large },

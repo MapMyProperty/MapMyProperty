@@ -20,10 +20,12 @@ const Login = () => {
       process.env.REACT_APP_PASSWORD === data?.password
     ) {
       localStorage.setItem("developer_mode", false);
+      localStorage.setItem("Tokens", JSON.stringify({ accessToken: "authenticated_section" })); // Persist auth
       toast.success("Admin Login Successful");
       setAuth(dispatch, true);
     } else if ("developer" === data?.email && process.env.REACT_APP_PASSWORD === data?.password) {
       localStorage.setItem("developer_mode", true);
+      localStorage.setItem("Tokens", JSON.stringify({ accessToken: "developer_session" }));
       toast("Developer Login Successful", { icon: "💻" });
       setAuth(dispatch, true);
     } else {

@@ -21,6 +21,7 @@ const getFilterCategory = async ({ page, perPage, sortBy, order, search }) => {
 const addBuilders = async (data) => request(`/builders`, 'POST', data)
 
 const addProjects = async (data) => request(`/projects`, 'POST', data)
+const generateProjectAI = async (data) => request(`/ai/generate-project`, 'POST', data)
 const updateProjects = async (data) => request(`/projects`, 'PATCH', data)
 const updateBuilders = async (data) => request(`/builders`, 'PATCH', data)
 const deleteProjects = async (data) => request(`/projects/${data?._id}`, 'DELETE', data)
@@ -53,22 +54,26 @@ const getBuilders = async ({ page, perPage, sortBy, order, search }) => {
   return response;
 };
 
-  export {
-    addCategory,
-    getCategoryById,
-    editCategory,
-    deleteCategory,
-    addProjects,
-    updateProjects,
-    deleteProjects,
-    getCategory,
-    getFilterCategory,
-    getProjects,
-    getProjectsById,
-    getSelectProjects,
-    addBuilders,
-    getBuilders,
-    getBuildersById,
-    updateBuilders,
-    getSelectBuilders
-  };
+const getAnalytics = async () => request(`/analytics/dashboard-stats`, 'GET');
+
+export {
+  addCategory,
+  getCategoryById,
+  editCategory,
+  deleteCategory,
+  addProjects,
+  updateProjects,
+  deleteProjects,
+  getCategory,
+  getFilterCategory,
+  getProjects,
+  getProjectsById,
+  getSelectProjects,
+  addBuilders,
+  getBuilders,
+  getBuildersById,
+  updateBuilders,
+  getSelectBuilders,
+  generateProjectAI,
+  getAnalytics
+};

@@ -1,165 +1,277 @@
-import React, { useState } from "react";
-import Typography from "components/Typography";
-import Box from "components/Box";
-import Avatar from "components/Avatar";
-import Badge from "components/Badge";
-import Table from "examples/Tables/Table";
+import { useState } from "react";
+import { Box, TextField, Pagination, MenuItem, Select, IconButton, Skeleton, Avatar } from "@mui/material";
 import { useGetBuilders } from "queries/ProductQuery";
 import { Link } from "react-router-dom";
-import { Icon, TextField, Button, Pagination } from "@mui/material";
-import PropTypes from "prop-types";
+import { motion } from "framer-motion";
 
-function Author({ id, image, name, desc }) {
-  return (
-    <Box
-      key={id}
-      display="flex"
-      alignItems="center"
-      px={1}
-      py={0.5}
-      style={{ textTransform: "capitalize" }}
-    >
-      <Box mr={2}>
-        <Avatar src={image} alt={name} size="sm" variant="rounded" />
-      </Box>
-      <Box display="flex" flexDirection="column">
-        <Typography variant="button" fontWeight="medium">
-          {name.slice(0, 50)}
-        </Typography>
-        <Typography
-          variant="caption"
-          color="secondary"
-          sx={{
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: "250px",
-          }}
-        >
-          {desc}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-Author.propTypes = {
-  id: PropTypes.string.isRequired,
-  image: PropTypes.string.isRequired,
-  name: PropTypes.string.isRequired,
-  desc: PropTypes.string.isRequired,
+// -- Styles --
+const styles = {
+  container: {
+    background: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(20px)",
+    borderRadius: "20px",
+    padding: "20px",
+    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+    border: "1px solid rgba(255, 255, 255, 0.18)",
+    height: "calc(100vh - 140px)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  searchField: {
+    background: "rgba(255, 255, 255, 0.6)",
+    borderRadius: "12px",
+    width: "300px",
+    "& fieldset": { border: "none" },
+  },
+  tableWrapper: {
+    flex: 1,
+    overflow: "auto",
+    borderRadius: "15px",
+    boxShadow: "inset 0 0 10px rgba(0,0,0,0.02)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "separate",
+    borderSpacing: "0 8px",
+  },
+  th: {
+    padding: "16px",
+    color: "#6c757d",
+    fontWeight: "600",
+    fontSize: "13px",
+    textAlign: "left",
+    textTransform: "uppercase",
+    borderBottom: "none",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  tr: {
+    background: "rgba(255, 255, 255, 0.7)",
+    backdropFilter: "blur(5px)",
+    borderRadius: "12px",
+    transition: "all 0.2s ease",
+    cursor: "default",
+  },
+  td: {
+    padding: "16px",
+    fontSize: "14px",
+    color: "#555",
+    borderTop: "1px solid rgba(0,0,0,0.02)",
+    borderBottom: "1px solid rgba(0,0,0,0.02)",
+    verticalAlign: "middle",
+  },
+  statusBadge: (isAvailable) => ({
+    padding: "6px 12px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+    background: isAvailable ? "rgba(46, 204, 113,0.15)" : "rgba(231, 76, 60, 0.15)",
+    color: isAvailable ? "#27ae60" : "#c0392b",
+    display: "inline-block",
+  }),
+  actionButton: {
+    background: "rgba(255, 255, 255, 0.8)",
+    borderRadius: "8px",
+    padding: "6px",
+    color: "#888",
+    transition: "all 0.2s",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textDecoration: "none",
+    "&:hover": {
+      background: "#fff",
+      color: "#333",
+      boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+    }
+  }
 };
 
 const TableData = () => {
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage] = useState(10);
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useGetBuilders({ page, perPage, sortBy, order, search });
 
-  // useEffect(() => {
-  //   refetch();
-  // }, [page, perPage, sortBy, order, search]);
   const handlePageChange = (event, value) => {
     setPage(value);
   };
 
-  const columns = [
-    { name: "builders", align: "left" },
-    { name: "status", align: "center" },
-    { name: "createdon", align: "center" },
-    { name: "Lastupdated", align: "center" },
-    // { name: "variant", align: "center" },
-    { name: "action", align: "center" },
-  ];
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setOrder(order === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setOrder("desc");
+    }
+  };
 
-  const rows = data?.docs?.map((item) => ({
-    builders: (
-      <Author
-        id={item._id}
-        image={`${process.env.REACT_APP_API_URL}/uploads/${item?.image}`}
-        name={item?.title}
-        desc={item?.subtitle}
-      />
-    ),
-    status: (
-      <Badge
-        variant="gradient"
-        badgeContent={item?.isAvailable ? "Active" : "Blocked"}
-        color={item?.isAvailable ? "success" : "secondary"}
-        size="xs"
-        container
-      />
-    ),
-    createdon: (
-      <Typography variant="caption" color="secondary" fontWeight="medium">
-        {new Date(item?.createdAt).toDateString()}
-      </Typography>
-    ),
-    Lastupdated: (
-      <Typography variant="caption" color="secondary" fontWeight="medium">
-        {new Date(item?.updatedAt).toDateString()}
-      </Typography>
-    ),
-    // variant: (
-    //   <Link to={`/products/variantProduct/${item?._id}`}>
-    //     {/* <Icon sx={{ cursor: "pointer", fontWeight: "bold" }} fontSize="small">
-    //       more_vert
-    //     </Icon> */}
-    //     <Button>Add Variant</Button>
-    //   </Link>
-    // ),
-    action: (
-      <Link to={`/builders/editBuilders/${item?._id}`}>
-        <Icon sx={{ cursor: "pointer", fontWeight: "bold" }} fontSize="small">
-          more_vert
-        </Icon>
-      </Link>
-    ),
-  }));
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+  };
+
+  const rowVariants = {
+    hidden: { y: 10, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
 
   return (
-    <>
-      <Box display="flex" alignItems="center" justifyContent="space-between" py={2} px={2}>
+    <div style={styles.container}>
+      <div style={styles.header}>
         <TextField
-          placeholder="Search..."
+          placeholder="Search builders..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           variant="outlined"
           size="small"
-          style={{ marginLeft: "5px" }}
+          sx={styles.searchField}
         />
-        <Box>
-          <Button onClick={() => setOrder(order === "asc" ? "desc" : "asc")}>
-            Sort by {sortBy} ({order})
-          </Button>
-        </Box>
-      </Box>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            size="small"
+            sx={{ height: 40, background: "rgba(255,255,255,0.8)", borderRadius: "10px", minWidth: 140 }}
+          >
+            <MenuItem value="createdAt">Created Date</MenuItem>
+            <MenuItem value="title">Name</MenuItem>
+            <MenuItem value="updatedAt">Updated Date</MenuItem>
+          </Select>
+          <IconButton onClick={() => setOrder(order === "asc" ? "desc" : "asc")} sx={{ background: "rgba(255,255,255,0.8)" }}>
+            <Box component="i" className={`ni ni-bold-${order === "asc" ? "up" : "down"}`} fontSize="12px" />
+          </IconButton>
+        </div>
+      </div>
+
       {isLoading ? (
-        <Typography fontSize={14} sx={{ paddingX: 5 }}>
-          loading...
-        </Typography>
+        <div style={styles.tableWrapper}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Builder</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Status</th>
+                <th style={styles.th}>Created On</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Last Updated</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(6)].map((_, index) => (
+                <tr key={index} style={{ background: "white", boxShadow: "0 2px 5px rgba(0,0,0,0.02)", borderRadius: "12px" }}>
+                  <td style={{ ...styles.td, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Skeleton variant="rounded" width={40} height={40} />
+                      <Box>
+                        <Skeleton variant="text" width={100} height={20} />
+                        <Skeleton variant="text" width={140} height={14} />
+                      </Box>
+                    </div>
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "center" }}>
+                    <Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 4, margin: "auto" }} />
+                  </td>
+                  <td style={styles.td}>
+                    <Skeleton variant="text" width={90} height={20} />
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "center" }}>
+                    <Skeleton variant="text" width={90} height={20} sx={{ margin: "auto" }} />
+                  </td>
+                  <td style={{ ...styles.td, borderTopRightRadius: 12, borderBottomRightRadius: 12, textAlign: "center" }}>
+                    <Skeleton variant="circular" width={30} height={30} sx={{ margin: "auto" }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <Table columns={columns} rows={rows} />
+        <div style={styles.tableWrapper}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th} onClick={() => handleSort("title")}>Builder {sortBy === "title" && (order === "asc" ? "↑" : "↓")}</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Status</th>
+                <th style={styles.th} onClick={() => handleSort("createdAt")}>Created On {sortBy === "createdAt" && (order === "asc" ? "↑" : "↓")}</th>
+                <th style={{ ...styles.th, textAlign: "center" }} onClick={() => handleSort("updatedAt")}>Last Updated {sortBy === "updatedAt" && (order === "asc" ? "↑" : "↓")}</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Action</th>
+              </tr>
+            </thead>
+            <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
+              {data?.docs?.map((item) => (
+                <motion.tr
+                  key={item._id}
+                  variants={rowVariants}
+                  style={styles.tr}
+                  whileHover={{ scale: 1.01, boxShadow: "0 5px 15px rgba(0,0,0,0.05)" }}
+                >
+                  {/* Builder Column */}
+                  <td style={{ ...styles.td, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }}>
+                    <Box display="flex" alignItems="center">
+                      <Avatar
+                        src={`${process.env.REACT_APP_API_URL}/uploads/${item?.image}`}
+                        alt={item?.title}
+                        variant="rounded"
+                        sx={{ width: 40, height: 40, mr: 2, borderRadius: "10px" }}
+                      />
+                      <Box display="flex" flexDirection="column">
+                        <span style={{ fontWeight: 600, color: "#333" }}>{item?.title}</span>
+                        <span style={{ fontSize: "12px", color: "#888" }}>{item?.subtitle?.slice(0, 30)}{item?.subtitle?.length > 30 ? "..." : ""}</span>
+                      </Box>
+                    </Box>
+                  </td>
+
+                  {/* Status Column */}
+                  <td style={{ ...styles.td, textAlign: "center" }}>
+                    <div style={styles.statusBadge(item?.isAvailable)}>
+                      {item?.isAvailable ? "Active" : "Inactive"}
+                    </div>
+                  </td>
+
+                  {/* Created On Column */}
+                  <td style={styles.td}>
+                    <div style={{ fontSize: "13px" }}>{new Date(item?.createdAt).toDateString()}</div>
+                  </td>
+
+                  {/* Last Updated Column */}
+                  <td style={{ ...styles.td, textAlign: "center" }}>
+                    <div style={{ fontSize: "13px" }}>{new Date(item?.updatedAt).toDateString()}</div>
+                  </td>
+
+                  {/* Action Column */}
+                  <td style={{ ...styles.td, borderTopRightRadius: 12, borderBottomRightRadius: 12, textAlign: "center" }}>
+                    <Link to={`/builders/editBuilders/${item?._id}`} style={styles.actionButton}>
+                      <Box component="i" className="ni ni-settings-gear-65" fontWeight="bold" />
+                    </Link>
+                  </td>
+                </motion.tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </div>
       )}
 
-      {/* <TablePagination
-        component="div"
-        count={data?.totalDocs || 0}
-        page={page - 1}
-        onPageChange={(event, newPage) => setPage(newPage + 1)}
-        rowsPerPage={perPage}
-        onRowsPerPageChange={(event) => setPerPage(parseInt(event.target.value, 10))}
-      /> */}
-      <Box style={{ display: "flex", justifyContent: "center", Margin: "10px" }}>
+      <Box display="flex" justifyItems="center" justifyContent="center" mt={3}>
         <Pagination
           count={Math.ceil((data?.totalDocs || 0) / perPage)}
           page={page}
           onChange={handlePageChange}
+          color="primary"
+          shape="rounded"
         />
       </Box>
-    </>
+    </div>
   );
 };
 

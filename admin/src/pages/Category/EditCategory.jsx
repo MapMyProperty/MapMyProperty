@@ -1,23 +1,55 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Grid,
-  ToggleButton,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Grid, ToggleButton, Typography } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import PageLayout from "layouts/PageLayout";
 import toast from "react-hot-toast";
 import Input from "components/Input";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEditCategorys, useGetCategorysById, useDeleteCategorys } from "queries/ProductQuery";
+import { motion } from "framer-motion";
+
+const styles = {
+  container: {
+    background: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(20px)",
+    borderRadius: "20px",
+    padding: "30px",
+    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+    border: "1px solid rgba(255, 255, 255, 0.18)",
+    maxWidth: "600px",
+    margin: "0 auto",
+  },
+  uploadBox: {
+    width: "100%",
+    height: 120,
+    cursor: "pointer",
+    background: "rgba(255,255,255,0.5)",
+    border: "2px dashed #ccc",
+    borderRadius: "15px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      background: "rgba(255,255,255,0.8)",
+      borderColor: "#777",
+    },
+  },
+  title: {
+    fontSize: "24px",
+    fontWeight: "700",
+    color: "#344767",
+    marginBottom: "20px",
+    textAlign: "center"
+  }
+};
 
 const EditCategory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: res, isLoading } = useGetCategorysById({ id });
   const [data, setData] = useState({});
+
   useEffect(() => {
     setData(res?.data);
   }, [res]);
@@ -40,6 +72,7 @@ const EditCategory = () => {
   const { mutateAsync: deleteCategory, isLoading: deleting } = useDeleteCategorys();
 
   const handleDelete = () => {
+    if (!window.confirm("Are you sure you want to delete this category?")) return;
     deleteCategory(data)
       .then((res) => {
         if (res) {
@@ -51,37 +84,26 @@ const EditCategory = () => {
         toast.error(err?.message ?? "Something went wrong");
       });
   };
+
   const handleSubmit = () => {
     try {
-      if (!data?.name) {
-        return toast.error("name is required");
-      }
-      // if (!data?.subtitle) {
-      //    return toast.error("subtitle is required")
-      // }
-      // if (!data?.url) {
-      //    return toast.error("url is required")
-      // }
-      if (!data?.desc) {
-        return toast.error("description is required");
-      }
-      if (!data?.image) {
-        return toast.error("image is required");
-      }
+      if (!data?.name) return toast.error("name is required");
+      if (!data?.desc) return toast.error("description is required");
+      if (!data?.image) return toast.error("image is required");
+
       const formData = new FormData();
       for (const key in data) {
         if (data.hasOwnProperty(key) && key !== "image" && key !== "countries") {
-          console.log("key", key, data[key]);
           formData.append(key, data[key]);
         }
       }
 
       typeof data.image == "object" && formData.append("image", data.image, data?.image?.name);
-      // console.log("formData",formData);
+
       editCategory(formData)
         .then((res) => {
           if (res) {
-            toast.success(res?.message ?? "Category added Successfully");
+            toast.success(res?.message ?? "Category updated Successfully");
             navigate("/category");
           }
         })
@@ -92,120 +114,87 @@ const EditCategory = () => {
       console.error(error);
     }
   };
+
   return (
     <PageLayout title={"Edit Category"}>
-      <Box sx={{ flexGrow: 1 }} display={"flex"} justifyContent={"center"}>
-        <Grid container spacing={2} maxWidth={600} py={5}>
-          <Grid item xs={12} sm={6}>
-            <Input
-              required
-              placeholder="Category Name"
-              id="name"
-              name="name"
-              label="Category Name"
-              value={data?.name || ""}
-              onChange={handleChange}
-              fullWidth
-              autoComplete="name"
-              variant="outlined"
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <Typography variant="caption">Category status &nbsp;</Typography>
-            <ToggleButton
-              value={data?.isAvailable}
-              selected={data?.isAvailable}
-              onChange={() => {
-                setData((prev) => ({ ...prev, isAvailable: !data?.isAvailable }));
-              }}
-            >
-              {data?.isAvailable ? "Active" : "Blocked"}
-            </ToggleButton>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Input
-              id="description"
-              name="desc"
-              placeholder="Category Description"
-              label="Category Description *"
-              value={data?.desc || ""}
-              onChange={handleChange}
-              fullWidth
-              autoComplete="Description"
-              multiline
-              rows={4}
-              helperText="Short Description (about 10-20 words)"
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Grid container>
+      <Box sx={{ flexGrow: 1, py: 4 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Box sx={styles.container}>
+            <Typography sx={styles.title}>Edit Category</Typography>
+            <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
-                <Box
-                  sx={{
-                    width: 200,
-                    height: 110,
-                    cursor: "pointer",
-                    backgroundColor: "#D3D3D3",
-                    "&:hover": {
-                      backgroundColor: "#424242",
-                      opacity: [0.9, 0.8, 0.7],
-                    },
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "column",
-                    borderRadius: "10px",
-                    overflow: "hidden",
+                <Input
+                  required
+                  placeholder="Category Name"
+                  id="name"
+                  name="name"
+                  value={data?.name || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  autoComplete="name"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} display="flex" alignItems="center" justifyContent="center">
+                <ToggleButton
+                  value={data?.isAvailable}
+                  selected={data?.isAvailable}
+                  onChange={() => {
+                    setData((prev) => ({ ...prev, isAvailable: !data?.isAvailable }));
                   }}
-                  onClick={handleFileSelect}
+                  sx={{
+                    borderRadius: "10px",
+                    border: "1px solid rgba(0,0,0,0.1)",
+                    px: 3,
+                    background: data?.isAvailable ? "rgba(46, 204, 113,0.1) !important" : "rgba(231, 76, 60, 0.1) !important",
+                    color: data?.isAvailable ? "#27ae60 !important" : "#c0392b !important",
+                    fontWeight: "bold"
+                  }}
                 >
+                  {data?.isAvailable ? "Active" : "Blocked"}
+                </ToggleButton>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Input
+                  id="description"
+                  name="desc"
+                  placeholder="Category Description"
+                  value={data?.desc || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  autoComplete="Description"
+                  multiline
+                  rows={4}
+                />
+                <Typography variant="caption" color="text" sx={{ mt: 1, display: "block" }}>
+                  Short Description (about 10-20 words)
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={styles.uploadBox} onClick={handleFileSelect}>
                   {data?.image ? (
                     <img
-                      style={{ width: 240, height: 192, padding: 22 }}
+                      style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }}
                       src={
                         typeof data?.image == "object"
                           ? URL.createObjectURL(data.image)
                           : `${process.env.REACT_APP_API_URL}/uploads/${data.image}`
                       }
+                      alt="preview"
                     />
                   ) : (
-                    <React.Fragment>
-                      <svg
-                        width="56"
-                        height="56"
-                        viewBox="0 0 56 56"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M20.9994 51.3346H34.9994C46.666 51.3346 51.3327 46.668 51.3327 35.0013V21.0013C51.3327 9.33464 46.666 4.66797 34.9994 4.66797H20.9994C9.33268 4.66797 4.66602 9.33464 4.66602 21.0013V35.0013C4.66602 46.668 9.33268 51.3346 20.9994 51.3346Z"
-                          stroke="#CDCDCD"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M21.0007 23.3333C23.578 23.3333 25.6673 21.244 25.6673 18.6667C25.6673 16.0893 23.578 14 21.0007 14C18.4233 14 16.334 16.0893 16.334 18.6667C16.334 21.244 18.4233 23.3333 21.0007 23.3333Z"
-                          stroke="#CDCDCD"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M6.23047 44.2186L17.7338 36.4953C19.5771 35.2586 22.2371 35.3986 23.8938 36.8219L24.6638 37.4986C26.4838 39.0619 29.4238 39.0619 31.2438 37.4986L40.9505 29.1686C42.7705 27.6053 45.7105 27.6053 47.5305 29.1686L51.3338 32.4353"
-                          stroke="#CDCDCD"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <Typography sx={{ mt: 1, fontSize: 13, color: "#fff" }}>
+                    <>
+                      <Box component="i" className="ni ni-cloud-upload-96" fontSize="24px" color="#aaa" mb={1} />
+                      <Typography variant="caption" fontWeight="bold" color="text">
                         Upload Thumbnail
                       </Typography>
-                    </React.Fragment>
+                    </>
                   )}
                   <input
                     ref={fileInputRef}
@@ -216,24 +205,51 @@ const EditCategory = () => {
                   />
                 </Box>
               </Grid>
+
+              <Grid item xs={12}>
+                <Box display="flex" gap={2}>
+                  <Button
+                    variant="contained"
+                    color="info"
+                    fullWidth
+                    onClick={handleSubmit}
+                    disabled={updating}
+                    sx={{ boxShadow: "none", "&:hover": { boxShadow: "0 4px 12px rgba(0,0,0,0.15)" } }}
+                  >
+                    {updating ? "Updating..." : "Save Changes"}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    sx={{
+                      flex: 1,
+                      borderColor: "#e74c3c",
+                      color: "#e74c3c",
+                      "&:hover": {
+                        background: "rgba(231, 76, 60, 0.05)",
+                        borderColor: "#c0392b"
+                      }
+                    }}
+                  >
+                    {deleting ? "Deleting..." : "Delete"}
+                  </Button>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ background: "rgba(255,255,255,0.5)", fontSize: 13, border: "1px solid rgba(0,0,0,0.05)" }}>
+                  <ul style={{ margin: "0", paddingLeft: "20px" }}>
+                    <li>Dimensions: 1280x720 pixels (16:9)</li>
+                    <li>Max size: 2MB</li>
+                    <li>Format: JPG, PNG, JPEG</li>
+                  </ul>
+                </Alert>
+              </Grid>
             </Grid>
-          </Grid>
-          <Grid item xs={12}>
-            <Button onClick={handleSubmit} disabled={updating}>UPDATE CATEGORY</Button>
-            <Button color="secondary" onClick={handleDelete} disabled={deleting}>
-              DELETE CATEGORY
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Alert color="primary" severity="info" sx={{ mt: 3, fontSize: 13 }}>
-              <ul style={{ margin: "0", padding: "0" }}>
-                <li>Make your thumbnail 1280 by 720 pixels (4:5 ratio)</li>
-                <li>Ensure that your thumbnail is less than 2MB</li>
-                <li>Use a JPG, PNG, or JPEG file format</li>
-              </ul>
-            </Alert>
-          </Grid>
-        </Grid>
+          </Box>
+        </motion.div>
       </Box>
     </PageLayout>
   );

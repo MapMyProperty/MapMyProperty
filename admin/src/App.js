@@ -37,6 +37,7 @@ import AddSection from "pages/Sections/AddSection";
 import EditSection from "pages/Sections/EditSection";
 import AddTag from "pages/Tags/AddTag";
 import EditTag from "pages/Tags/EditTag";
+import Analytics from "pages/Analytics";
 
 export default function App() {
   const [controller, dispatch] = useController();
@@ -129,7 +130,8 @@ export default function App() {
                 <Route path="/banners/editBanner/:id" element={<EditBanner />} />
                 <Route path="/tags/addTags" element={<AddTag />} />
                 <Route path="/tags/editTags/:id" element={<EditTag />} />
-                <Route path="*" element={<Navigate to="/projects" />} /> 
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="*" element={<Navigate to="/projects" />} />
               </Routes>
               {/* <Footer /> */}
             </DashboardLayout>
@@ -171,6 +173,7 @@ export default function App() {
               <Route path="/banners/editBanner/:id" element={<EditBanner />} />
               <Route path="/tags/addTags" element={<AddTag />} />
               <Route path="/tags/editTags/:id" element={<EditTag />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="*" element={<Navigate to="/projects" />} />
             </Routes>
             {/* <Footer /> */}

@@ -17,6 +17,7 @@ import {
   getSelectBuilders,
   getBuildersById,
   updateBuilders,
+  generateProjectAI
 } from "./productUrls";
 
 const useGetCategory = (data) => {
@@ -84,7 +85,7 @@ const useGetBuilders = (params) => {
     refetchOnWindowFocus: false,
   });
 };
-const useGetSelectBuilders= (data) => {
+const useGetSelectBuilders = (data) => {
   return useQuery(["get_Builders", data], () => getSelectBuilders(data), {
     staleTime: 3000,
     keepPreviousData: true,
@@ -147,6 +148,21 @@ const useAddBuilders = () => {
     },
   });
 };
+
+const useGenerateProjectAI = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation((data) => generateProjectAI(data), {
+    onSuccess: (data) => {
+      queryClient.invalidateQueries("get_Projects");
+      return data;
+    },
+    onError: (data) => {
+      return data;
+    },
+  });
+};
+
 const useUpdateProjects = () => {
   const queryClient = useQueryClient();
 
@@ -187,7 +203,7 @@ const useDeleteProjects = () => {
   });
 };
 
-const useGetSelectProjects= (data) => {
+const useGetSelectProjects = (data) => {
   return useQuery(["get_Projects", data], () => getSelectProjects(data), {
     staleTime: 3000,
     keepPreviousData: true,
@@ -212,5 +228,6 @@ export {
   useAddBuilders,
   useGetBuilders,
   useUpdateBuilders,
-  useGetSelectBuilders
+  useGetSelectBuilders,
+  useGenerateProjectAI
 };

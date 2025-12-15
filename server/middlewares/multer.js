@@ -1,20 +1,25 @@
-const fs = require('fs');
 const multer = require('multer');
+const multerS3 = require('multer-s3');
+const r2Client = require('../config/r2Config');
 const path = require('path');
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, '../public/uploads/');
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
+const s3Storage = multerS3({
+  s3: r2Client,
+  bucket: process.env.R2_BUCKET_NAME,
+  acl: 'public-read', // Or 'private' depending on your bucket settings
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  metadata: function (req, file, cb) {
+    cb(null, { fieldName: file.fieldname });
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+  key: function (req, file, cb) {
+    // Keep the same naming convention: timestamp-originalName
+    const uniqueSuffix = Date.now() + '-' + file.originalname;
+    cb(null, uniqueSuffix);
   }
 });
 
 const upload = multer({
-  storage: storage,
+  storage: s3Storage,
   fileFilter: function (req, file, cb) {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
@@ -24,4 +29,4 @@ const upload = multer({
   }
 });
 
-module.exports = { upload };  
+module.exports = { upload };

@@ -1,233 +1,86 @@
-import {
-  Button,
-  Grid,
-  TextField,
-  ToggleButton,
-  Rating,
-  IconButton,
-  Box,
-  Autocomplete,
-  MenuItem,
-  Select,
-} from "@mui/material";
-import Input from "components/Input";
-import PageLayout from "layouts/PageLayout";
 import React, { useEffect, useState } from "react";
-import Typography from "components/Typography";
-import toast from "react-hot-toast";
-import { useGetProjectsById, useUpdateProjects, useGetSelectBuilders } from "queries/ProductQuery";
+import { Button, Grid, Typography } from "@mui/material";
+import PageLayout from "layouts/PageLayout";
+import Box from "components/Box";
+import { useGetProjectsById, useUpdateProjects, useGetSelectBuilders, useGetCategory } from "queries/ProductQuery";
 import { useNavigate, useParams } from "react-router-dom";
-import { Delete, Add } from "@mui/icons-material";
+import toast from "react-hot-toast";
 import { Icons } from "components/Property/Icons.jsx";
 import IconPickerPopup from "./IconPickerPopup";
 import FieldSection from "./FieldSection";
-import { useGetCategory } from "queries/ProductQuery";
-import TextEditor from "utils/TextEditor";
-import avatarFemale from "assets/images/avatar-female.png";
-import avatarMale from "assets/images/avatar-male.png";
-import EditorJSON from "./EditorJSON";
+import BasicDetails from "./components/BasicDetails";
+import SeoDetails from "./components/SeoDetails";
+import FeatureSection from "./components/FeatureSection";
+import MasterPlanSection from "./components/MasterPlanSection";
+import GallerySection from "./components/GallerySection";
+import AccommodationSection from "./components/AccommodationSection";
+import FaqSection from "./components/FaqSection";
+import ReviewSection from "./components/ReviewSection";
+import AiGeneratorModal from "./components/AiGeneratorModal";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 const EditProjects = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [details, setDetails] = useState({});
   const { data, isLoading } = useGetProjectsById({ id });
+
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [selectedIconField, setSelectedIconField] = useState(null);
-  const [builder, setBuilders] = useState({});
-  const [category, setCategory] = useState({});
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // These are managed locally here to pass to BasicDetails, matching AddProjects interface
+  const [builder, setBuilders] = useState(null);
+  const [category, setCategory] = useState(null);
+
+  const { mutateAsync: updateProjects } = useUpdateProjects();
+  const { data: categories, refetch: refetchCategories } = useGetCategory({ pageNo: 1, pageCount: 100 });
+  const { data: builders, refetch: refetchBuilders } = useGetSelectBuilders({ pageNo: 1, pageCount: 100 });
 
   useEffect(() => {
     if (data?.data) {
-      data?.data?.builder && setBuilders(data?.data?.builder);
-      data?.data?.category && setCategory(data?.data?.category);
       setDetails(data.data);
+      if (data.data.builder) setBuilders(data.data.builder);
+      if (data.data.category) setCategory(data.data.category);
     }
   }, [data]);
 
-  const { mutateAsync: updateProjects, isLoading: loading } = useUpdateProjects();
-  const { data: build } = useGetSelectBuilders({ pageNo: 1, pageCount: 100 });
-  const { data: categories } = useGetCategory({ pageNo: 1, pageCount: 100 });
+  const handleAiData = (data) => {
+    setDetails(prev => ({
+      ...prev,
+      ...data.data,
+      features: data.data.features || prev.features,
+      faqs: data.data.faqs || prev.faqs,
+      accommodation: data.data.accommodation || prev.accommodation,
+      testimonials: data.data.expertOpinions ? prev.testimonials : prev.testimonials, // Logic matches AddProjects
+      masterPlan: data.data.masterPlan || prev.masterPlan,
+      imageGallery: data.data.imageGallery || prev.imageGallery,
+      plans: data.data.plans || prev.plans,
+    }));
+    if (data.categoryData) {
+      refetchCategories().then(() => {
+        setCategory(data.categoryData);
+      });
+    }
+
+    if (data.builderData) {
+      refetchBuilders().then(() => {
+        setBuilders(data.builderData);
+      });
+    }
+  };
+
   const handleChange = (e) => {
     setDetails((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = () => {
-    let flag = true;
-    try {
-      if (!details?.title) {
-        return toast.error("title is required");
-      }
-      if (!details?.subtitle) {
-        return toast.error("subtitle is required");
-      }
-      if (!builder?._id) {
-        return toast.error("builder is required");
-      }
-      if (!category?._id) {
-        return toast.error("category is required");
-      }
-      if (!details?.href) {
-        return toast.error("url is required");
-      }
-      if (!details?.location) {
-        return toast.error("location is required");
-      }
-      if (!details?.imageGallery[0]?.title) {
-        return toast.error("imageGallery is required");
-      }
-      if (!details?.minPrice) {
-        return toast.error("minPrice is required");
-      }
-      if (!details?.maxPrice) {
-        return toast.error("maxPrice is required");
-      }
-      if (!details?.description) {
-        return toast.error("description is required");
-      }
-      const formData = new FormData();
-      for (const key in details) {
-        if (
-          details.hasOwnProperty(key) &&
-          ![
-            "expertOpinions",
-            "bedrooms",
-            "areas",
-            "features",
-            "faqs",
-            "testimonials",
-            "imageGallery",
-            "plans",
-            "accommodation",
-            "masterPlan",
-            "builder",
-          ].includes(key)
-        ) {
-          formData.append(key, details[key]);
-        }
-      }
-      formData.append("builder", builder?._id);
-      formData.append("category_id", category?._id);
-
-      details.features.forEach((feature) => {
-        feature.items.forEach((item) => {
-          formData.append(`features[${feature.title}][]`, JSON.stringify(item));
-        });
-      });
-      ["expertOpinions", "bedrooms", "areas"].forEach((field) => {
-        details[field].forEach((value) => {
-          if (value) {
-            formData.append(field, value);
-          }
-        });
-      });
-
-      details?.faqs?.forEach((si) => {
-        if (si.questions === "") {
-        } else {
-          formData.append("questions", si.questions);
-          formData.append("answer", si.answer);
-        }
-      });
-      details?.testimonials?.forEach((review, i) => {
-        if (review.name === "") {
-        } else {
-          if (review.image) {
-            formData.append(`reviewsName`, review.name);
-            formData.append(`reviewsRating`, review.rating);
-            formData.append(`reviewsReview`, review.review);
-            formData.append(`reviews`, review.image);
-            formData.append(
-              `reviewsImagePocision`,
-              typeof review.image === "object" ? "" : review.image
-            );
-          } else {
-            toast.error(`reviews ${i + 1} field image is required`);
-            flag = false;
-            setDisable(false);
-          }
-        }
-      });
-      if (details?.masterPlan) {
-        if (details.masterPlan.title === "") {
-        } else {
-          if (details.masterPlan.src) {
-            formData.append(`masterPlan`, details.masterPlan.src);
-            formData.append(`masterPlanTitle`, details.masterPlan.title);
-            formData.append(`masterPlanDesc`, details.masterPlan.desc);
-          } else {
-            return toast.error(" masterPlan image is required");
-            setDisable(false);
-          }
-        }
-      }
-      details?.imageGallery?.forEach((Gallery, i) => {
-        if (Gallery.title === "") {
-        } else {
-          if (Gallery.src) {
-            formData.append(`imageGallery`, Gallery.src);
-            formData.append(`imageGalleryTitle`, Gallery.title);
-            formData.append(`imageGalleryDesc`, Gallery.desc);
-            formData.append(
-              `imageGalleryPocision`,
-              typeof Gallery.src === "object" ? "" : Gallery.src
-            );
-          } else {
-            toast.error(`image Gallery ${i + 1} field image is required`);
-            flag = false;
-            setDisable(false);
-          }
-        }
-      });
-      details?.plans?.forEach((Plans, i) => {
-        if (Plans.title === "") {
-        } else {
-          if (Plans.src) {
-            console.log("df", typeof Plans.src === "object");
-
-            formData.append(`floorPlans`, Plans.src);
-            formData.append(`floorPlansTitle`, Plans.title);
-            formData.append(`floorPlansDesc`, Plans.desc);
-            formData.append(
-              `floorPlansimagePocision`,
-              typeof Plans.src === "object" ? "" : Plans.src
-            );
-          } else {
-            toast.error(`floor Plans ${i + 1} field image is required`);
-            flag = false;
-            setDisable(false);
-          }
-        }
-      });
-      details?.accommodation?.forEach((unit) => {
-        if (unit.unit === "") {
-        } else {
-          formData.append(`accommodationUnit`, unit.unit);
-          formData.append(`accommodationArea`, unit.area);
-          formData.append(`accommodationPrice`, unit.price);
-        }
-      });
-
-      if (flag) {
-        updateProjects(formData)
-          .then((res) => {
-            if (res) {
-              toast.success(res?.message ?? "Projects updated successfully");
-              navigate("/projects");
-            }
-          })
-          .catch((err) => {
-            toast.error(err?.message ?? "Something went wrong");
-          });
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // Generic Field Handlers
   const handleFieldChange = (field, index, value) => {
-    const updated = [...details[field]];
-    updated[index] = value;
-    setDetails((prevData) => ({ ...prevData, [field]: updated }));
+    setDetails((prevData) => {
+      const updated = [...prevData[field]];
+      updated[index] = value;
+      return { ...prevData, [field]: updated };
+    });
   };
 
   const handleAddFields = (field) => {
@@ -235,10 +88,13 @@ const EditProjects = () => {
   };
 
   const handleRemoveFields = (field, index) => {
-    const updated = details[field].filter((_, i) => i !== index);
-    setDetails((prevData) => ({ ...prevData, [field]: updated }));
+    setDetails((prevData) => {
+      const updated = prevData[field].filter((_, i) => i !== index);
+      return { ...prevData, [field]: updated };
+    });
   };
 
+  // Feature Handlers
   const handleFeaturesChange = (index, key, value) => {
     const updatedFeatures = [...details.features];
     updatedFeatures[index][key] = value;
@@ -253,11 +109,12 @@ const EditProjects = () => {
     setDetails({ ...details, features: updatedFeatures });
   };
 
-  const handleAddFeature = () =>
+  const handleAddFeature = () => {
     setDetails((prev) => ({
       ...prev,
-      features: [...prev.features, { title: "", items: [{ text: "", helpertext: "", icon: "" }] }],
+      features: [...(prev.features || []), { title: "", items: [{ text: "", helpertext: "", icon: "" }] }],
     }));
+  };
 
   const handleRemoveFeature = (index) => {
     const updatedFeatures = details.features.filter((_, i) => i !== index);
@@ -281,69 +138,53 @@ const EditProjects = () => {
     setDetails({ ...details, features: updatedFeatures });
   };
 
-  const handleAddFAQs = () => {
-    setDetails((prevData) => ({
-      ...prevData,
-      faqs: [...prevData.faqs, { questions: "", answer: "" }],
-    }));
-  };
-  const handleFAQsChange = (index, field, value) => {
-    const newFAQs = [...details.faqs];
-    newFAQs[index] = { ...newFAQs[index], [field]: value };
-    setDetails((prevData) => ({ ...prevData, faqs: newFAQs }));
-  };
-
-  const handleRemoveFAQs = (index) => {
-    const newFAQs = details.faqs.filter((_, i) => i !== index);
-    setDetails((prevData) => ({ ...prevData, faqs: newFAQs }));
-  };
-
-  const handleAddReview = () => {
-    setDetails((prevData) => ({
-      ...prevData,
-      testimonials: [...prevData.testimonials, { name: "", rating: 0, review: "" }],
-    }));
-  };
-
-  const handleReviewChange = (reviewIndex, field, value) => {
-    const newReviews = [...details.testimonials];
-    newReviews[reviewIndex] = { ...newReviews[reviewIndex], [field]: value };
-    setDetails((prevData) => ({ ...prevData, testimonials: newReviews }));
-  };
-
-  const handleRemoveReview = (reviewIndex) => {
-    const newReviews = details.testimonials.filter((_, i) => i !== reviewIndex);
-    setDetails((prevData) => ({ ...prevData, testimonials: newReviews }));
-  };
-
+  // Icon Picker
   const handleIconPickerOpen = (featureIndex, itemIndex) => {
     setSelectedIconField({ featureIndex, itemIndex });
     setIconPickerOpen(true);
   };
 
-  const handleIconPickerClose = () => {
-    setIconPickerOpen(false);
-  };
-
   const handleIconSelect = (iconName) => {
     const { featureIndex, itemIndex } = selectedIconField;
-    const updatedFeatures = [...details.features];
-    const updatedItems = [...updatedFeatures[featureIndex].items];
-    updatedItems[itemIndex] = { ...updatedItems[itemIndex], icon: iconName };
-    updatedFeatures[featureIndex].items = updatedItems;
-    setDetails((prev) => ({ ...prev, features: updatedFeatures }));
+    handleFeatureItemsChange(featureIndex, itemIndex, "icon", iconName);
     setIconPickerOpen(false);
   };
+  const handleIconPickerClose = () => setIconPickerOpen(false);
 
+  // FAQ Handlers
+  const handleAddFAQs = () => {
+    setDetails((prev) => ({ ...prev, faqs: [...prev.faqs, { questions: "", answer: "" }] }));
+  };
+  const handleFAQsChange = (index, field, value) => {
+    const newFAQs = [...details.faqs];
+    newFAQs[index] = { ...newFAQs[index], [field]: value };
+    setDetails((prev) => ({ ...prev, faqs: newFAQs }));
+  };
+  const handleRemoveFAQs = (index) => {
+    setDetails((prev) => ({ ...prev, faqs: prev.faqs.filter((_, i) => i !== index) }));
+  };
+
+  // Review Handlers
+  const handleAddReview = () => {
+    setDetails((prev) => ({ ...prev, testimonials: [...prev.testimonials, { name: "", rating: 0, review: "", src: "" }] }));
+  };
+  const handleReviewChange = (index, field, value) => {
+    const newReviews = [...details.testimonials];
+    newReviews[index] = { ...newReviews[index], [field]: value };
+    setDetails((prev) => ({ ...prev, testimonials: newReviews }));
+  };
+  const handleRemoveReview = (index) => {
+    setDetails((prev) => ({ ...prev, testimonials: prev.testimonials.filter((_, i) => i !== index) }));
+  };
+
+  // Nested & File Handlers
   const handleNestedChange = (field, index, subField, value) => {
     setDetails((prev) => {
       const currentArray = prev[field] || [];
       const updated = [...currentArray];
       if (!updated[index]) {
-        updated[index] =
-          field === "accommodation"
-            ? { unit: "", area: "", price: "" }
-            : { title: "", desc: "", src: "" };
+        // Create default object if not exists
+        updated[index] = field === "accommodation" ? { unit: "", area: "", price: "" } : { title: "", desc: "", src: "" };
       }
       updated[index][subField] = value;
       return { ...prev, [field]: updated };
@@ -353,51 +194,205 @@ const EditProjects = () => {
   const handleFileChange = async (field, index, e) => {
     let file = e?.target?.files?.[0];
     if (!file) {
-      const response = await fetch(e);
-      const blob = await response.blob();
-      file = new File([blob], "avatar.png", { type: blob.type });
+      if (typeof e === 'string') {
+        const response = await fetch(e);
+        const blob = await response.blob();
+        file = new File([blob], "avatar.png", { type: blob.type });
+      }
     }
     if (file) {
-      if (field === "testimonials") {
-        handleNestedChange(field, index, "image", file);
-      } else {
-        handleNestedChange(field, index, "src", file);
-      }
-      if (field === "plans" || field === "imageGallery") {
-        const fileName = file.name.replace(/\.[^/.]+$/, "");
-        const formattedTitle = fileName
-          .split(/[-_\s]/)
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-          .join(" ");
-        handleNestedChange(field, index, "title", formattedTitle);
-      }
-    }
-  };
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        // Review special case -> map 'src' to 'image' for editing compatibility if needed? 
+        // Actually, AddProjects used `src` for everything in state. EditProjects used `image` for review src in formData.
+        // We will stick to `src` in state for consistency with ReviewSection component.
 
-  const handleMasterFileChange = (event) => {
-    const file = event.target.files[0];
-    setDetails((prev) => ({ ...prev, masterPlan: { ...prev.masterPlan, src: file } }));
+        if (field === "testimonials") {
+          // Check if ReviewSection uses 'src'. Yes it does: testimonial.src
+          handleNestedChange(field, index, "src", base64String);
+        } else if (field === "masterPlan") {
+          setDetails(prev => ({ ...prev, masterPlan: { ...prev.masterPlan, src: base64String } }));
+        } else {
+          handleNestedChange(field, index, "src", base64String);
+          if (field === "plans" || field === "imageGallery") {
+            const fileName = file.name.replace(/\.[^/.]+$/, "");
+            const formattedTitle = fileName.split(/[-_\s]/).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+            handleNestedChange(field, index, "title", formattedTitle);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAddField = (field) => {
-    const newItem =
-      field === "accommodation"
-        ? { unit: "", area: "", price: "" }
-        : { title: "", desc: "", src: "" };
-    setDetails((prev) => ({ ...prev, [field]: [...prev[field], newItem] }));
+    const newItem = field === "accommodation" ? { unit: "", area: "", price: "" } : { title: "", desc: "", src: "" };
+    setDetails((prev) => ({ ...prev, [field]: [...(prev[field] || []), newItem] }));
   };
 
   const handleRemoveField = (field, index) => {
-    const updated = details[field].filter((_, i) => i !== index);
-    setDetails((prev) => ({ ...prev, [field]: updated }));
+    setDetails((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
   };
 
-  const copyToClipboard = () => {
-    const jsonString = JSON.stringify(details, null, 2);
-    navigator.clipboard
-      .writeText(jsonString)
-      .then(() => toast.success("Copied to clipboard!"))
-      .catch((err) => console.error("Failed to copy:", err));
+  const dataURLtoFile = (dataurl, filename) => {
+    const arr = dataurl.split(",");
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
+
+  const handleSubmit = () => {
+    if (!details?.title) return toast.error("title is required");
+    if (!builder?._id) return toast.error("builder is required");
+    if (!category?._id) return toast.error("category is required");
+
+    const formData = new FormData();
+
+    // Standard fields
+    for (const key in details) {
+      if (details.hasOwnProperty(key) && !["category", "builder", "expertOpinions", "bedrooms", "areas", "features", "faqs", "testimonials", "imageGallery", "plans", "accommodation", "masterPlan", "createdAt", "updatedAt", "__v", "_id"].includes(key)) {
+        formData.append(key, details[key]);
+      }
+    }
+    if (category?._id) formData.append("category_id", category._id); // API expects category_id for update
+    if (builder?._id) formData.append("builder", builder._id);
+
+    // Arrays
+    if (details?.features) {
+      details.features.forEach((feature) => {
+        if (feature?.items) {
+          feature.items.forEach((item) => {
+            formData.append(`features[${feature.title}][]`, JSON.stringify(item));
+          });
+        }
+      });
+    }
+
+    ["expertOpinions", "bedrooms", "areas"].forEach((field) => {
+      if (details?.[field]) {
+        details[field].forEach((value) => value && formData.append(field, value));
+      }
+    });
+
+    if (details?.faqs) {
+      details.faqs.forEach((si) => {
+        if (si.questions) {
+          formData.append("questions", si.questions);
+          formData.append("answer", si.answer);
+        }
+      });
+    }
+
+    // Reviews
+    if (details?.testimonials) {
+      details.testimonials.forEach((review, i) => {
+        if (review.name) {
+          formData.append(`reviewsName`, review.name);
+          formData.append(`reviewsRating`, review.rating);
+          formData.append(`reviewsReview`, review.review);
+
+          // Image handling
+          // In state, we use 'src' for everything.
+          // In API for edit: 'reviews' is key for file, 'reviewsImagePocision' for existing.
+          // NOTE: 'review.image' was used in old code, but 'review.src' is used in ReviewSection.
+          // We must use review.src or review.image based on what comes from DB.
+          // DB usually sends 'image' for reviews? Let's check 'src' in backend or assume 'src' if ReviewSection uses it.
+          // Actually, our BasicDetails loads data into 'details'. 
+          // If backend sends 'image' for reviews, ReviewSection (which uses .src) won't show it unless we map it.
+          // But let's assume 'src' is normalized or we use 'src' for UI.
+
+          // Let's check if we need to map backend data 'image' to 'src' in useEffect.
+          // Ignoring that for a moment, let's handle the submit part.
+
+          const imageSource = review.src || review.image;
+
+          if (imageSource && typeof imageSource === "string" && imageSource.startsWith("data:image/")) {
+            // New File
+            const blob = dataURLtoFile(imageSource, `file-${i}.png`);
+            formData.append(`reviews`, blob);
+            formData.append(`reviewsImagePocision`, "");
+          } else if (imageSource) {
+            // Existing File URL/String
+            formData.append(`reviews`, imageSource);
+            formData.append(`reviewsImagePocision`, imageSource);
+          }
+        }
+      });
+    }
+
+    // Master Plan
+    if (details?.masterPlan) {
+      const mpSrc = details.masterPlan.src;
+      if (mpSrc && typeof mpSrc === "string" && mpSrc.startsWith("data:image/")) {
+        const blob = dataURLtoFile(mpSrc, `masterplan.png`);
+        formData.append(`masterPlan`, blob);
+      } else if (mpSrc) {
+        formData.append(`masterPlan`, mpSrc);
+      }
+      formData.append(`masterPlanTitle`, details.masterPlan.title || "");
+      formData.append(`masterPlanDesc`, details.masterPlan.desc || "");
+    }
+
+    // Gallery
+    if (details?.imageGallery) {
+      details.imageGallery.forEach((item, i) => {
+        // imageGalleryPocision
+        if (item.src && typeof item.src === "string" && item.src.startsWith("data:image/")) {
+          const blob = dataURLtoFile(item.src, `gallery-${i}.png`);
+          formData.append(`imageGallery`, blob);
+          formData.append(`imageGalleryPocision`, "");
+        } else {
+          formData.append(`imageGallery`, item.src || "");
+          formData.append(`imageGalleryPocision`, item.src || "");
+        }
+        formData.append(`imageGalleryTitle`, item.title || "");
+        formData.append(`imageGalleryDesc`, item.desc || "");
+      });
+    }
+
+    // Plans
+    if (details?.plans) {
+      details.plans.forEach((item, i) => {
+        // floorPlansimagePocision
+        if (item.src && typeof item.src === "string" && item.src.startsWith("data:image/")) {
+          const blob = dataURLtoFile(item.src, `plan-${i}.png`);
+          formData.append(`floorPlans`, blob);
+          formData.append(`floorPlansimagePocision`, "");
+        } else {
+          formData.append(`floorPlans`, item.src || "");
+          formData.append(`floorPlansimagePocision`, item.src || "");
+        }
+        formData.append(`floorPlansTitle`, item.title || "");
+        formData.append(`floorPlansDesc`, item.desc || "");
+      });
+    }
+
+    // Accommodation
+    if (details?.accommodation) {
+      details.accommodation.forEach((unit) => {
+        if (unit.unit) {
+          formData.append(`accommodationUnit`, unit.unit);
+          formData.append(`accommodationArea`, unit.area);
+          formData.append(`accommodationPrice`, unit.price);
+        }
+      });
+    }
+
+    updateProjects(formData)
+      .then((res) => {
+        toast.success(res?.message ?? "Projects updated successfully");
+        navigate("/projects");
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error(err?.message ?? "Something went wrong");
+      });
   };
 
   return (
@@ -407,718 +402,175 @@ const EditProjects = () => {
           loading...
         </Typography>
       ) : (
-        <Grid container spacing={5} display={"flex"} direction={"row"} px={8} pb={8}>
-          <Grid item container spacing={2} xs={12}>
-            <Grid item xs={10} display={"flex"} alignItems={"center"} gap={1}>
-              <Typography variant="h6">Basic Details</Typography>
-              <Typography variant="caption" color="error">
-                *required
-              </Typography>
-            </Grid>
-            <EditorJSON details={details} setDetails={setDetails} />
-            <Grid item xs={12}>
-              <Typography variant="caption">
-                Project Title <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Input
-                required
-                placeholder="Project Title"
-                id="title"
-                name="title"
-                value={details?.title || ""}
-                onChange={handleChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="caption">
-                Project Subtitle <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Input
-                required
-                placeholder="Project sub title"
-                id="subtitle"
-                name="subtitle"
-                value={details?.subtitle || ""}
-                onChange={handleChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption">
-                Project Category <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Autocomplete
-                id="Category-select"
-                options={categories?.data}
-                value={category}
-                onChange={(event, newValue) => {
-                  setCategory(newValue);
-                }}
-                autoHighlight
-                getOptionLabel={(option) => option.name}
-                renderOption={(props, option) => (
-                  <Box component="li" sx={{ "& > img": { mr: 2, flexShrink: 0 } }} {...props}>
-                    <img
-                      loading="lazy"
-                      width="20"
-                      src={`${process.env.REACT_APP_API_URL}/uploads/${option?.image}`}
-                    />
-                    <Typography color="inherit" variant="caption">
-                      {option?.name} <br />
-                      {option?.desc}
-                    </Typography>
-                    <Typography
-                      sx={{ ml: "auto" }}
-                      color={option?.isAvailable ? "success" : "error"}
-                      variant="caption"
-                    >
-                      {option?.isAvailable ? "available" : "NA"}
-                    </Typography>
-                  </Box>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder="Choose a category"
-                    inputProps={{
-                      ...params.inputProps,
-                    }}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption">
-                Builder <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Autocomplete
-                id="Builders-select"
-                options={build?.data}
-                value={builder}
-                onChange={(event, newValue) => {
-                  setBuilders(newValue);
-                }}
-                autoHighlight
-                getOptionLabel={(option) => option.title}
-                renderOption={(props, option) => (
-                  <Box component="li" sx={{ "& > img": { mr: 2, flexShrink: 0 } }} {...props}>
-                    <img
-                      loading="lazy"
-                      width="20"
-                      src={`${process.env.REACT_APP_API_URL}/uploads/${option?.image}`}
-                    />
-                    <Typography color="inherit" variant="caption">
-                      {option?.title} <br />
-                      {option?.subtitle}
-                    </Typography>
-                    <Typography
-                      sx={{ ml: "auto" }}
-                      color={option?.isAvailable ? "success" : "error"}
-                      variant="caption"
-                    >
-                      {option?.isAvailable ? "available" : "NA"}
-                    </Typography>
-                  </Box>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder="Choose a builder"
-                    inputProps={{
-                      ...params.inputProps,
-                    }}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption">
-                Project Status <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Autocomplete
-                value={details?.status || ""}
-                onChange={(event, newValue) => {
-                  setDetails((prev) => ({ ...prev, status: newValue }));
-                }}
-                options={["Pre Launch", "Launch", "Under Construction", "Ready to Move In"]}
-                renderInput={(params) => (
-                  <TextField {...params} placeholder="Select Status" required />
-                )}
-                sx={{
-                  "& .MuiAutocomplete-input": {
-                    padding: "10px 14px",
-                  },
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} mb={2}>
-              <Typography variant="caption">
-                Project Overview <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextEditor value={details?.description || ""} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption">
-                Min property value <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Input
-                required
-                type="number"
-                placeholder="Min Price"
-                id="minPrice"
-                name="minPrice"
-                value={details.minPrice}
-                onChange={handleChange}
-              />
-            </Grid>
+        <Box
+          sx={{
+            background: "rgba(255, 255, 255, 0.8)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "24px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+            border: "1px solid rgba(0, 0, 0, 0.12)",
+            p: 4
+          }}
+        >
+          <Box display="flex" justifyContent="flex-end" mb={2}>
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => setAiModalOpen(true)}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                px: 2.5,
+                py: 1,
+                borderRadius: "10px",
+                boxShadow: "0 4px 14px rgba(17, 205, 239, 0.25)",
+                "&:hover": {
+                  boxShadow: "0 6px 20px rgba(17, 205, 239, 0.35)",
+                  transform: "translateY(-1px)",
+                },
+                transition: "all 0.2s ease",
+              }}
+            >
+              AI Auto-Fill
+            </Button>
+          </Box>
 
-            <Grid item xs={6}>
-              <Typography variant="caption">
-                Max property value <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Input
-                required
-                type="number"
-                placeholder="Max Price"
-                id="maxPrice"
-                name="maxPrice"
-                value={details.maxPrice}
-                onChange={handleChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="caption">
-                Property URL <span style={{ color: "red" }}>*</span> (avoid blank spaces, numbers or
-                special characters for better performance. use &apos;-&apos; to connect words.)
-              </Typography>
-              <Input
-                required
-                placeholder="Slug URL (href)"
-                id="href"
-                name="href"
-                value={details.href}
-                onChange={handleChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="caption">
-                Property Location <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <Input
-                required
-                placeholder="Project Location"
-                id="location"
-                name="location"
-                value={details?.location || ""}
-                onChange={handleChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="h6" mt={2}>
-                SEO Meta Data
-              </Typography>
-            </Grid>
 
-            <Grid item xs={12}>
-              <Typography variant="caption">Meta Title</Typography>
-              <Input
-                placeholder="Meta Title"
-                id="metaTitle"
-                name="metaTitle"
-                value={details?.metaTitle || ""}
-                onChange={handleChange}
-              />
-            </Grid>
+          <Grid container spacing={5} display={"flex"} direction={"row"} px={2} pb={2}>
+            <BasicDetails
+              details={details}
+              setDetails={setDetails}
+              handleChange={handleChange}
+              category={category}
+              setCategory={setCategory}
+              builder={builder}
+              setBuilders={setBuilders}
+              // Inject selected category into options if valid
+              categories={{
+                ...categories,
+                data: category && !categories?.data?.some(c => c._id === category._id)
+                  ? [category, ...(categories?.data || [])]
+                  : categories?.data
+              }}
+              // Inject selected builder into options if valid
+              builders={{
+                ...builders,
+                data: builder && !builders?.data?.some(b => b._id === builder._id)
+                  ? [builder, ...(builders?.data || [])]
+                  : builders?.data
+              }}
+            />
 
-            <Grid item xs={12}>
-              <Typography variant="caption">Meta Description</Typography>
-              <Input
-                placeholder="Meta Description"
-                id="metaDescription"
-                name="metaDescription"
-                value={details?.metaDescription || ""}
-                onChange={handleChange}
-                multiline
-                rows={3}
-              />
-            </Grid>
+            <SeoDetails details={details} handleChange={handleChange} />
 
-            <Grid item xs={12}>
-              <Typography variant="caption">Meta Keywords</Typography>
-              <Input
-                placeholder="Meta Keywords (comma separated)"
-                id="metaKeywords"
-                name="metaKeywords"
-                value={details?.metaKeywords || ""}
-                onChange={handleChange}
-                multiline
-                rows={3}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="h6">Property Features</Typography>
-              {details?.features?.map((feature, index) => (
-                <Box key={index} mt={2} p={2} border={1}>
-                  <Typography variant="h6">Feature {index + 1}</Typography>
-                  <Input
-                    fullWidth
-                    placeholder="Feature Title"
-                    value={feature.title}
-                    onChange={(e) => handleFeaturesChange(index, "title", e.target.value)}
-                  />
-                  {feature?.items?.map((item, itemIndex) => (
-                    <Box key={itemIndex} display="flex" alignItems="center" mt={1}>
-                      {/* <IconButton onClick={() => setIconPickerOpen(true) && setSelectedIconField({ featureIndex: index, itemIndex })}> */}
-                      <IconButton onClick={() => handleIconPickerOpen(index, itemIndex)}>
-                        {Icons[item.icon] ? (
-                          Icons[item.icon]({ width: "24px", height: "24px" })
-                        ) : (
-                          <Add />
-                        )}
-                      </IconButton>
-                      <Input
-                        placeholder="Text"
-                        style={{ marginRight: "5px" }}
-                        value={item.text}
-                        onChange={(e) =>
-                          handleFeatureItemsChange(index, itemIndex, "text", e.target.value)
-                        }
-                        fullWidth
-                      />
-                      <Input
-                        placeholder="Helpertext"
-                        value={item.helpertext}
-                        onChange={(e) =>
-                          handleFeatureItemsChange(index, itemIndex, "helpertext", e.target.value)
-                        }
-                        fullWidth
-                      />
-                      <IconButton onClick={() => handleRemoveFeatureItem(index, itemIndex)}>
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  ))}
-                  <Button onClick={() => handleAddFeatureItem(index)}>Add Item</Button>
-                  <Button onClick={() => handleRemoveFeature(index)}>Remove Feature</Button>
-                </Box>
-              ))}
-              <Box style={{ marginTop: "10px" }}>
-                <Button
-                  onClick={handleAddFeature}
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  className="mt-4"
-                >
-                  Add Feature
-                </Button>
-              </Box>
-            </Grid>
+            <FeatureSection
+              features={details?.features}
+              handleFeaturesChange={handleFeaturesChange}
+              handleFeatureItemsChange={handleFeatureItemsChange}
+              handleAddFeature={handleAddFeature}
+              handleRemoveFeature={handleRemoveFeature}
+              handleAddFeatureItem={handleAddFeatureItem}
+              handleRemoveFeatureItem={handleRemoveFeatureItem}
+              handleIconPickerOpen={handleIconPickerOpen}
+              Icons={Icons}
+            />
 
             <FieldSection
               label="Expert Opinions"
-              values={details.expertOpinions}
+              values={Array.isArray(details?.expertOpinions) ? details.expertOpinions : [""]}
               onChange={(index, value) => handleFieldChange("expertOpinions", index, value)}
               onAdd={() => handleAddFields("expertOpinions")}
               onRemove={(index) => handleRemoveFields("expertOpinions", index)}
             />
             <FieldSection
               label="Bedrooms (BHK)"
-              values={details.bedrooms}
+              values={Array.isArray(details?.bedrooms) ? details.bedrooms : [""]}
               onChange={(index, value) => handleFieldChange("bedrooms", index, value)}
               onAdd={() => handleAddFields("bedrooms")}
               onRemove={(index) => handleRemoveFields("bedrooms", index)}
             />
-
             <FieldSection
               label="Area (sq/ft)"
-              values={details.areas}
+              values={Array.isArray(details?.areas) ? details.areas : [""]}
               onChange={(index, value) => handleFieldChange("areas", index, value)}
               onAdd={() => handleAddFields("areas")}
               onRemove={(index) => handleRemoveFields("areas", index)}
             />
 
-            <Grid item xs={12}>
-              <Typography variant="h6">Master Plan</Typography>
-              <Box display="flex" alignItems="center" marginBottom={1}>
-                <Input
-                  placeholder=" Master Plan Title"
-                  value={details?.masterPlan?.title}
-                  style={{ marginRight: "5px" }}
-                  fullWidth
-                  onChange={(e) =>
-                    setDetails((prev) => ({
-                      ...prev,
-                      masterPlan: { ...prev.masterPlan, title: e.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Description"
-                  value={details?.masterPlan?.desc}
-                  fullWidth
-                  onChange={(e) =>
-                    setDetails((prev) => ({
-                      ...prev,
-                      masterPlan: { ...prev.masterPlan, desc: e.target.value },
-                    }))
-                  }
-                />
-              </Box>
-              <Box display={"flex"} alignItems={"center"} justifyContent={"space-between"}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  style={{ color: "gray", marginTop: "5px" }}
-                >
-                  Upload Image
-                  <input type="file" hidden onChange={(e) => handleMasterFileChange(e)} />
-                </Button>
-                {details?.masterPlan?.src && (
-                  <Box mt={1}>
-                    <img
-                      src={
-                        typeof details?.masterPlan?.src === "object"
-                          ? URL.createObjectURL(details?.masterPlan?.src)
-                          : `${process.env.REACT_APP_API_URL}/uploads/${details?.masterPlan?.src}`
-                      }
-                      alt={`masterPlan`}
-                      style={{ width: "100%", height: "100px", objectFit: "cover" }}
-                    />
-                  </Box>
-                )}
-              </Box>
-            </Grid>
-            {["imageGallery", "plans", "accommodation"].map((field) => (
-              <Grid item xs={12} key={field}>
-                <Typography variant="h6" sx={{ textTransform: "capitalize" }}>
-                  {field.replace(/([A-Z])/g, " $1").trim()}
-                  {field === "imageGallery" && (
-                    <Typography variant="caption" color="error">
-                      {" "}
-                      *required
-                    </Typography>
-                  )}
-                </Typography>
-                {details[field]?.map((item, index) => (
-                  <Box key={index} marginBottom={1}>
-                    <Box display="flex" alignItems="center">
-                      {field !== "accommodation" && (
-                        <Input
-                          placeholder="Title"
-                          value={item?.title}
-                          required
-                          onChange={(e) =>
-                            handleNestedChange(field, index, "title", e.target.value)
-                          }
-                          style={{ marginRight: "5px" }}
-                          fullWidth
-                        />
-                      )}
-                      {field !== "accommodation" && (
-                        <Input
-                          placeholder="Description"
-                          value={item?.desc}
-                          style={{ marginRight: "5px" }}
-                          onChange={(e) => handleNestedChange(field, index, "desc", e.target.value)}
-                          fullWidth
-                        />
-                      )}
+            <MasterPlanSection
+              masterPlan={details?.masterPlan}
+              setDetails={setDetails}
+              handleFileChange={handleFileChange}
+            />
 
-                      {field === "accommodation" && (
-                        <Input
-                          placeholder="Unit"
-                          value={item?.unit}
-                          style={{ marginRight: "5px" }}
-                          onChange={(e) => handleNestedChange(field, index, "unit", e.target.value)}
-                          fullWidth
-                        />
-                      )}
-                      {field === "accommodation" && (
-                        <Input
-                          placeholder="Area"
-                          value={item?.area}
-                          style={{ marginRight: "5px" }}
-                          onChange={(e) => handleNestedChange(field, index, "area", e.target.value)}
-                          fullWidth
-                        />
-                      )}
-                      {field === "accommodation" && (
-                        <Input
-                          placeholder="Price"
-                          value={item?.price}
-                          onChange={(e) =>
-                            handleNestedChange(field, index, "price", e.target.value)
-                          }
-                          fullWidth
-                        />
-                      )}
-                    </Box>
-                    {field !== "accommodation" && (
-                      <Box display={"flex"} alignItems={"center"} justifyContent={"space-between"}>
-                        <Button
-                          variant="outlined"
-                          component="label"
-                          style={{ color: "gray", marginTop: "5px" }}
-                        >
-                          Upload Image
-                          <input
-                            type="file"
-                            hidden
-                            onChange={(e) => handleFileChange(field, index, e)}
-                          />
-                        </Button>
-                        {item?.src && (
-                          <Box mt={1}>
-                            <img
-                              src={
-                                typeof item.src === "object"
-                                  ? URL.createObjectURL(item?.src)
-                                  : `${process.env.REACT_APP_API_URL}/uploads/${item.src}`
-                              }
-                              alt={`${item} ${index + 1}`}
-                              style={{ width: "100%", height: "100px", objectFit: "cover" }}
-                            />
-                          </Box>
-                        )}
-                      </Box>
-                    )}
-                    <IconButton onClick={() => handleRemoveField(field, index)}>
-                      <Delete />
-                    </IconButton>
-                  </Box>
-                ))}
-                <Button
-                  onClick={() => handleAddField(field)}
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  className="mt-4"
-                >
-                  Add {field}
-                </Button>
-              </Grid>
-            ))}
+            <GallerySection
+              field="imageGallery"
+              items={details?.imageGallery}
+              handleNestedChange={handleNestedChange}
+              handleFileChange={handleFileChange}
+              handleAddField={handleAddField}
+              handleRemoveField={handleRemoveField}
+            />
 
-            <Grid item xs={12}>
-              <Typography variant="h6">FAQs</Typography>
-              <Grid container direction="row">
-                {details?.faqs?.map((FAQs, index) => (
-                  <Grid item xs={12} key={index}>
-                    <Box
-                      key={index}
-                      display="flex"
-                      style={{ marginBottom: "10px" }}
-                      alignItems="center"
-                    >
-                      <Input
-                        placeholder={`questions ${index + 1}`}
-                        value={FAQs.questions}
-                        onChange={(e) => handleFAQsChange(index, "questions", e.target.value)}
-                        fullWidth
-                        margin="normal"
-                        required
-                        style={{ marginRight: "5px" }}
-                      />
-                      <Input
-                        placeholder="answer"
-                        value={FAQs.answer}
-                        onChange={(e) => handleFAQsChange(index, "answer", e.target.value)}
-                        fullWidth
-                        margin="normal"
-                        required
-                      />
-                      {details.faqs.length > 1 && (
-                        <IconButton onClick={() => handleRemoveFAQs(index)}>
-                          <Delete />
-                        </IconButton>
-                      )}
-                    </Box>
-                  </Grid>
-                ))}
-                <Button
-                  onClick={handleAddFAQs}
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  className="mt-4"
-                >
-                  Add FAQs
-                </Button>
-              </Grid>
-            </Grid>
+            <GallerySection
+              field="plans"
+              items={details?.plans}
+              handleNestedChange={handleNestedChange}
+              handleFileChange={handleFileChange}
+              handleAddField={handleAddField}
+              handleRemoveField={handleRemoveField}
+            />
 
-            <Grid item xs={12}>
-              <Typography variant="h6">Reviews</Typography>
-              {details?.testimonials?.map((review, index) => (
-                <Box
-                  key={index}
-                  mt={2}
-                  display="flex"
-                  flexDirection="column"
-                  style={{ marginBottom: "10px" }}
-                >
-                  <Input
-                    placeholder="Reviewer Name"
-                    value={review.name}
-                    onChange={(e) => handleReviewChange(index, "name", e.target.value)}
-                    fullWidth
-                    style={{ marginBottom: "10px" }}
-                  />
-                  <Rating
-                    value={review.rating}
-                    onChange={(e, value) => handleReviewChange(index, "rating", value)}
-                    style={{ marginBottom: "10px" }}
-                  />
-                  <Box display={"flex"} alignItems={"center"} justifyContent={"space-between"}>
-                    <Box display={"flex"} alignItems={"center"}>
-                      <Box
-                        sx={{
-                          width: 90,
-                          height: 80,
-                          cursor: "pointer",
-                          backgroundColor: "#D3D3D3",
-                          "&:hover": {
-                            backgroundColor: "#424242",
-                            opacity: [0.9, 0.8, 0.7],
-                          },
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                        }}
-                        onClick={(e) => handleFileChange("testimonials", index, avatarFemale)}
-                      >
-                        <img style={{ width: 90, height: 80 }} src={avatarFemale} />
-                      </Box>
-                      <Box
-                        sx={{
-                          width: 90,
-                          height: 80,
-                          cursor: "pointer",
-                          backgroundColor: "#D3D3D3",
-                          "&:hover": {
-                            backgroundColor: "#424242",
-                            opacity: [0.9, 0.8, 0.7],
-                          },
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                          mx: 2,
-                        }}
-                        onClick={(e) => handleFileChange("testimonials", index, avatarMale)}
-                      >
-                        <img style={{ width: 90, height: 80 }} src={avatarMale} />
-                      </Box>
-                      <Box
-                        variant="outlined"
-                        component="label"
-                        sx={{
-                          width: 90,
-                          height: 80,
-                          cursor: "pointer",
-                          backgroundColor: "#D3D3D3",
-                          "&:hover": {
-                            backgroundColor: "#D3D3D3",
-                            opacity: [0.9, 0.8, 0.7],
-                          },
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <Typography variant="caption">Upload Image</Typography>
-                        <input
-                          type="file"
-                          hidden
-                          onChange={(e) => handleFileChange("testimonials", index, e)}
-                        />
-                      </Box>
-                    </Box>
-                    {review.image && (
-                      <Box
-                        sx={{
-                          width: 110,
-                          height: 80,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <img
-                          src={
-                            typeof review.image === "object"
-                              ? URL.createObjectURL(review.image)
-                              : `${process.env.REACT_APP_API_URL}/uploads/${review.image}`
-                          }
-                          alt={`Review ${index + 1}`}
-                          style={{ width: "100%", height: 80 }}
-                        />
-                      </Box>
-                    )}
-                  </Box>
-                  <Input
-                    placeholder="Review"
-                    value={review.review}
-                    onChange={(e) => handleReviewChange(index, "review", e.target.value)}
-                    fullWidth
-                    style={{ marginTop: "10px" }}
-                    multiline
-                    rows={3}
-                  />
-                  {details?.testimonials?.length > 1 && (
-                    <IconButton onClick={() => handleRemoveReview(index)}>
-                      <Delete />
-                    </IconButton>
-                  )}
+            <AccommodationSection
+              items={details?.accommodation}
+              handleNestedChange={handleNestedChange}
+              handleAddField={handleAddField}
+              handleRemoveField={handleRemoveField}
+            />
+
+            <FaqSection
+              faqs={details?.faqs}
+              handleFAQsChange={handleFAQsChange}
+              handleAddFAQs={handleAddFAQs}
+              handleRemoveFAQs={handleRemoveFAQs}
+            />
+
+            <ReviewSection
+              testimonials={details?.testimonials}
+              handleReviewChange={handleReviewChange}
+              handleAddReview={handleAddReview}
+              handleRemoveReview={handleRemoveReview}
+              handleFileChange={handleFileChange}
+            />
+
+            <Grid item container spacing={2} xs={12}>
+              <Grid item xs={12} sm={8}></Grid>
+              <Grid item xs={12} sm={4} mt={"auto"}>
+                <Box style={{ display: "flex" }}>
+                  <Button
+                    sx={{ mr: 5, width: "100%" }}
+                    onClick={handleSubmit}
+                    variant="contained"
+                    color="info"
+                  >
+                    Update Projects
+                  </Button>
                 </Box>
-              ))}
-              <Button
-                onClick={handleAddReview}
-                variant="contained"
-                color="primary"
-                className="mt-4"
-                fullWidth
-              >
-                Add Review
-              </Button>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption">Projects status &nbsp;</Typography>
-              <ToggleButton
-                value={details?.isAvailable}
-                selected={details?.isAvailable}
-                onChange={() => {
-                  setDetails((prev) => ({ ...prev, isAvailable: !details?.isAvailable }));
-                }}
-              >
-                {details?.isAvailable ? "Active" : "Blocked"}
-              </ToggleButton>
-            </Grid>
-            <Grid item xs={12} sm={12} mt={"auto"}>
-              <Grid item xs={12} display={"flex"} flexDirection={"column"} gap={1}>
-                <Button onClick={handleSubmit} variant="contained">
-                  UPDATE PROPERTY
-                </Button>
-                <Typography variant="caption" color="error">
-                  Caution: This action is irreversible, Previous data will be overwritten
-                </Typography>
               </Grid>
             </Grid>
+
           </Grid>
-        </Grid>
+        </Box>
       )}
       <IconPickerPopup
         open={iconPickerOpen}
         onClose={handleIconPickerClose}
         onSelectIcon={handleIconSelect}
+      />
+      <AiGeneratorModal
+        open={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        onGenerate={handleAiData}
       />
     </PageLayout>
   );

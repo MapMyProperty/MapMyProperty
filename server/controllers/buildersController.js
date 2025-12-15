@@ -1,4 +1,5 @@
 const Builders = require("../models/builders");
+const { deleteFromR2 } = require('../utils/r2Utils');
 
 const getAdminBuilders = async (req, res) => {
   try {
@@ -115,7 +116,7 @@ const addBuilder = async (req, res) => {
         name,
         rating: reviewsRatingArray[index],
         review: reviewsReviewArray[index],
-        image: req.files.reviews && req.files.reviews[index].filename,
+        image: req.files.reviews && (req.files.reviews[index]?.key || req.files.reviews[index]?.filename),
       }));
 
       reviewValue = configurationInside[0]?.name
@@ -143,7 +144,7 @@ const addBuilder = async (req, res) => {
     //   addressValue = configurationInside[0]?.street ? configurationInside : undefined;
     // }
 
-    const logo = req?.files?.logo[0]?.filename;
+    const logo = req?.files?.logo[0]?.key || req?.files?.logo[0]?.filename;
     const builders = new Builders({
       title,
       subtitle,
@@ -154,7 +155,7 @@ const addBuilder = async (req, res) => {
       url,
       features: featuresValue,
       logo,
-      image: req?.files?.images[0]?.filename,
+      image: req?.files?.images[0]?.key || req?.files?.images[0]?.filename,
       // address: addressValue, faqs: faqsValue,
     });
     await builders.save();
@@ -239,11 +240,11 @@ const updateBuilder = async (req, res) => {
         // image: req?.body?.reviewsImagePocision[index] === '' ? (k++,req.files.reviews[k-1].filename) : req?.body?.reviewsImagePocision[index] ,
         image: Array.isArray(req?.body?.reviewsImagePocision)
           ? req?.body?.reviewsImagePocision[index] === ""
-            ? (k++, req.files.reviews[k - 1].filename)
+            ? (k++, (req.files.reviews[k - 1]?.key || req.files.reviews[k - 1]?.filename))
             : req?.body?.reviewsImagePocision[index]
           : req?.body?.reviewsImagePocision === ""
-          ? req.files.reviews[0].filename
-          : req?.body?.reviewsImagePocision,
+            ? (req.files.reviews[0]?.key || req.files.reviews[0]?.filename)
+            : req?.body?.reviewsImagePocision,
       }));
 
       reviewValue = configurationInside[0]?.name
@@ -273,11 +274,21 @@ const updateBuilder = async (req, res) => {
     // }
     let logos = logo;
     if (req?.files?.logo?.length > 0) {
-      logos = req.files.logo[0].filename;
+      logos = req.files.logo[0].key || req.files.logo[0].filename;
     }
     let images = image;
     if (req?.files?.images?.length > 0) {
-      images = req.files.images[0].filename;
+      images = req.files.images[0].key || req.files.images[0].filename;
+    }
+
+    const existingBuilder = await Builders.findById(_id);
+    if (existingBuilder) {
+      if (req?.files?.images?.length > 0 && existingBuilder.image) {
+        await deleteFromR2(existingBuilder.image);
+      }
+      if (req?.files?.logo?.length > 0 && existingBuilder.logo) {
+        await deleteFromR2(existingBuilder.logo);
+      }
     }
 
     await Builders.updateOne(
@@ -311,6 +322,28 @@ const updateBuilder = async (req, res) => {
 
 const deleteBuilder = async (req, res) => {
   try {
+    const data = await Builders.findById(req.params.id);
+    if (!data) {
+      return res.status(404).json({ message: "Builder not found" });
+    }
+
+    // Delete main image
+    if (data.image) {
+      await deleteFromR2(data.image);
+    }
+    // Delete logo
+    if (data.logo) {
+      await deleteFromR2(data.logo);
+    }
+    // Delete testimonial images
+    if (data.testimonials && Array.isArray(data.testimonials)) {
+      for (const testimonial of data.testimonials) {
+        if (testimonial.image) {
+          await deleteFromR2(testimonial.image);
+        }
+      }
+    }
+
     await Builders.deleteOne({ _id: req.params.id });
     res.status(200).json({ message: "builders deleted successfully" });
   } catch (error) {

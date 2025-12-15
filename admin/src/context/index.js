@@ -43,17 +43,18 @@ function reducer(state, action) {
 }
 
 function AdminControllerProvider({ children }) {
+  const token = localStorage.getItem("Tokens");
   const initialState = {
     miniSidenav: false,
     darkSidenav: false,
     sidenavColor: null,
     transparentNavbar: true,
-    fixedNavbar: false,
+    fixedNavbar: true,
     openConfigurator: false,
     direction: "ltr",
     layout: "dashboard",
     darkMode: false,
-    auth:false
+    auth: token ? true : false,
   };
 
   const [controller, dispatch] = useReducer(reducer, initialState);

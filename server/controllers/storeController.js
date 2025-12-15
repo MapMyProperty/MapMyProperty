@@ -1,5 +1,5 @@
 const Section = require('../models/sections');
-const fs = require('fs');
+const { deleteFromR2 } = require('../utils/r2Utils');
 
 const getSections = async (req, res) => {
    try {
@@ -29,7 +29,7 @@ const getStoreSections = async (req, res) => {
 const addSection = async (req, res) => {
    try {
       const { title, subtitle, projects, description, status } = req?.body
-      const image = req?.file?.filename
+      const image = req?.file?.key || req?.file?.filename
       if (!image) {
          return res.status(404).json({ message: 'Image not found' });
       }
@@ -58,20 +58,16 @@ const getSectionById = async (req, res) => {
 
 const updateSection = async (req, res) => {
    const { _id, title, projects, subtitle, description, status } = req.body;
-   const image = req?.file?.filename;
+   const image = req?.file?.key || req?.file?.filename;
    try {
       const data = await Section.findById(_id);
       if (!data) {
          return res.status(404).json({ message: 'Section not found' });
       }
       if (image) {
-         fs.unlink(`public/uploads/${data?.image}`, (err) => {
-            if (err) {
-               console.error('Error deleting image:', err);
-               return;
-            }
-            console.log('Image deleted successfully.');
-         });
+         if (data?.image) { // Check if there's an old image to delete
+            await deleteFromR2(data?.image);
+         }
       }
       await Section.updateOne({ _id }, {
          $set: { title, subtitle, projects, description, status, ...(image && { image }) }
@@ -90,13 +86,9 @@ const deleteSection = async (req, res) => {
       if (!data) {
          return res.status(404).json({ message: 'Section not found' });
       }
-      fs.unlink(`public/uploads/${data?.image}`, (err) => {
-         if (err) {
-            console.error('Error deleting image:', err);
-            return;
-         }
-         console.log('Image deleted successfully.');
-      });
+      if (data?.image) {
+         await deleteFromR2(data?.image);
+      }
       res.status(200).json({ message: 'Section deleted successfully' });
    } catch (error) {
       console.log(error);

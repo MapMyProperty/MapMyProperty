@@ -1,9 +1,9 @@
 const Category = require('../models/category')
-const fs = require('fs')
+const { deleteFromR2 } = require('../utils/r2Utils');
 
 const getCategory = async (req, res) => {
   try {
-    const data = await Category.find({isAvailable:true})
+    const data = await Category.find({ isAvailable: true })
     res.status(200).json({ data })
   } catch (error) {
     console.log(error);
@@ -11,7 +11,7 @@ const getCategory = async (req, res) => {
 };
 const getCategoryName = async (req, res) => {
   try {
-    const data = await Category.find({isAvailable:true}).select('name');
+    const data = await Category.find({ isAvailable: true }).select('name');
     res.status(200).json({ data })
   } catch (error) {
     console.log(error);
@@ -19,16 +19,16 @@ const getCategoryName = async (req, res) => {
 };
 const getHomeCategory = async (req, res) => {
   try {
-    const data = await Category.find({isAvailable:true,isImportant:true})
+    const data = await Category.find({ isAvailable: true, isImportant: true })
     res.status(200).json({ data })
   } catch (error) {
     console.log(error);
   }
 };
 
-const  getadminCategory = async (req, res) => {
-  console.log('getadminCategory');    
-  
+const getadminCategory = async (req, res) => {
+  console.log('getadminCategory');
+
   try {
     const { page = 1, perPage = 10, sortBy = 'createdAt', order = 'desc', search = '' } = req.query;
     const query = search ? { name: { $regex: search, $options: 'i' } } : {};
@@ -41,8 +41,8 @@ const  getadminCategory = async (req, res) => {
 
     const data = await Category.paginate(query, options);
     // console.log('data1-',data);
-    
-    
+
+
 
     res.status(200).json(data);
   } catch (error) {
@@ -53,8 +53,8 @@ const  getadminCategory = async (req, res) => {
 
 const addCategory = async (req, res) => {
   console.log('addCategory');
-  const { name, desc} = req?.body
-  const image = req?.file?.filename
+  const { name, desc } = req?.body
+  const image = req?.file?.key || req?.file?.filename
   try {
     let arr = []
     const categoryData = await Category.find()
@@ -64,7 +64,7 @@ const addCategory = async (req, res) => {
     const category = name.toUpperCase()
     const isExisting = arr.findIndex(x => x == category)
     if (isExisting === -1) {
-      const cat = new Category({ name, desc, image})
+      const cat = new Category({ name, desc, image })
       await cat.save()
       res.status(201).json({ data: cat, message: 'category created successfully' });
     } else {
@@ -82,13 +82,9 @@ const deleteCategory = async (req, res) => {
     if (!data) {
       return res.status(404).json({ message: 'Category not found' });
     }
-    fs.unlink(`public/uploads/${data?.image}`, (err) => {
-      if (err) {
-        console.error('Error deleting image:', err);
-        return;
-      }  
-      console.log('Image deleted successfully.');
-    });
+    if (data?.image) {
+      await deleteFromR2(data?.image);
+    }
     res.status(200).json({ message: 'Category deleted successfully' });
   } catch (error) {
     console.log(error);
@@ -106,24 +102,20 @@ const getCategoryById = async (req, res) => {
   }
 }
 const updateCategory = async (req, res) => {
-  const {_id,name, desc,isAvailable,isImportant} = req?.body
-  const image = req?.file?.filename
+  const { _id, name, desc, isAvailable, isImportant } = req?.body
+  const image = req?.file?.key || req?.file?.filename
   try {
     const data = await Category.findById(_id);
     if (!data) {
       return res.status(404).json({ message: 'Category not found' });
     }
     if (image) {
-      fs.unlink(`public/uploads/${data?.image}`, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-          return;
-        }
-        console.log('Image deleted successfully.');
-      });
+      if (data?.image) {
+        await deleteFromR2(data?.image);
+      }
     }
     await Category.updateOne({ _id }, {
-      $set: { name, desc,isAvailable,isImportant, ...(image && { image }) }
+      $set: { name, desc, isAvailable, isImportant, ...(image && { image }) }
     })
     res.status(200).json({ data, message: 'Category updated successfully' });
   } catch (error) {
@@ -133,12 +125,12 @@ const updateCategory = async (req, res) => {
 }
 
 module.exports = {
-    getCategory,
-    addCategory,
-    deleteCategory,
-    updateCategory,
-    getCategoryById,
-    getadminCategory,
-    getHomeCategory,
-    getCategoryName
-  }
+  getCategory,
+  addCategory,
+  deleteCategory,
+  updateCategory,
+  getCategoryById,
+  getadminCategory,
+  getHomeCategory,
+  getCategoryName
+}

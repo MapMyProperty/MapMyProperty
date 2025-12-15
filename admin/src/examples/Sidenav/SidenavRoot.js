@@ -15,9 +15,9 @@ export default styled(Drawer)(({ theme, ownerState }) => {
   if ((darkSidenav && layout === "landing") || (!darkSidenav && layout === "landing")) {
     bgColor = transparent.main;
   } else if (darkSidenav) {
-    bgColor = background.dark;
+    bgColor = "rgba(20, 20, 20, 0.8)"; // Dark Glass
   } else {
-    bgColor = white.main;
+    bgColor = "rgba(255, 255, 255, 0.8)"; // Light Glass
   }
 
   // styles for the sidenav when miniSidenav={false}
@@ -70,6 +70,10 @@ export default styled(Drawer)(({ theme, ownerState }) => {
       boxShadow: xxl,
       border: "none",
       backgroundColor: bgColor,
+
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      borderRight: "1px solid rgba(255, 255, 255, 0.5)",
 
       ...(miniSidenav ? drawerCloseStyles() : drawerOpenStyles()),
     },

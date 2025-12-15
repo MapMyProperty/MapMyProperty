@@ -1,13 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Grid,
-  ToggleButton,
-  Typography,
-  MenuItem,
-  Select,
-} from "@mui/material";
+import { Alert, Box, Button, Grid, ToggleButton, Typography, MenuItem, Select, TextField } from "@mui/material";
 import React, { useState } from "react";
 import PageLayout from "layouts/PageLayout";
 import toast from "react-hot-toast";
@@ -15,11 +6,61 @@ import Input from "components/Input";
 import { useAddBlogs } from "queries/StoreQuery";
 import { useNavigate } from "react-router-dom";
 import TextEditor from "./TextEditor";
+import { motion } from "framer-motion";
+
+// -- Styles --
+const styles = {
+  container: {
+    background: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(20px)",
+    borderRadius: "20px",
+    padding: "30px",
+    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+    border: "1px solid rgba(255, 255, 255, 0.18)",
+    maxWidth: "1000px",
+    margin: "0 auto",
+  },
+  uploadBox: {
+    width: "100%",
+    minHeight: 200,
+    cursor: "pointer",
+    background: "rgba(255,255,255,0.5)",
+    border: "2px dashed #ccc",
+    borderRadius: "15px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    transition: "all 0.3s ease",
+    padding: "20px",
+    "&:hover": {
+      background: "rgba(255,255,255,0.8)",
+      borderColor: "#11cdef",
+    },
+  },
+  title: {
+    fontSize: "24px",
+    fontWeight: "700",
+    color: "#344767",
+    marginBottom: "20px",
+    textAlign: "center"
+  },
+  sectionTitle: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#344767",
+    marginTop: "20px",
+    marginBottom: "10px",
+    borderBottom: "1px solid rgba(0,0,0,0.1)",
+    paddingBottom: "5px"
+  }
+};
 
 const AddBlog = () => {
-  const [data, setData] = useState({ type: "1" });
+  const [data, setData] = useState({ type: "1", status: true, isImportant: false });
   const navigate = useNavigate();
   const fileInputRef = React.useRef(null);
+
   const handleFileSelect = () => {
     fileInputRef.current.click();
   };
@@ -36,21 +77,12 @@ const AddBlog = () => {
 
   const handleSubmit = () => {
     try {
-      if (!data?.title) {
-        return toast.error("title is required");
-      }
-      if (!data?.subtitle) {
-        return toast.error("subtitle is required");
-      }
-      if (!data?.url) {
-        return toast.error("url is required");
-      }
-      if (!data?.description) {
-        return toast.error("description is required");
-      }
-      if (!data?.image) {
-        return toast.error("image is required");
-      }
+      if (!data?.title) return toast.error("Title is required");
+      if (!data?.subtitle) return toast.error("Subtitle is required");
+      if (!data?.url) return toast.error("URL is required");
+      if (!data?.description) return toast.error("Description is required");
+      if (!data?.image) return toast.error("Image is required");
+
       const formData = new FormData();
       for (const key in data) {
         if (data.hasOwnProperty(key) && key !== "image") {
@@ -58,6 +90,7 @@ const AddBlog = () => {
         }
       }
       typeof data.image == "object" && formData.append("image", data?.image, data?.image?.name);
+
       addBlogs(formData)
         .then((res) => {
           if (res) {
@@ -72,189 +105,160 @@ const AddBlog = () => {
       console.error(error);
     }
   };
+
   return (
     <PageLayout title={"Add Blog"}>
-      <Box sx={{ flexGrow: 1 }} display={"flex"} justifyContent={"center"}>
-        <Grid container spacing={2} maxWidth={{ md: 600, lg: 800 }} py={5} px={1}>
-          <Grid item xs={12} sm={6}>
-            <Input
-              required
-              placeholder="Blog Title"
-              id="title"
-              name="title"
-              label="Blog Title"
-              value={data?.title || ""}
-              onChange={handleChange}
-              fullWidth
-              autoComplete="Title"
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Input
-              required
-              placeholder="Blog SubTitle"
-              id="subtitle"
-              name="subtitle"
-              label="Blog Subtitle"
-              value={data?.subtitle || ""}
-              onChange={handleChange}
-              fullWidth
-              autoComplete="Subtitle"
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <Input
-              required
-              placeholder="Blog Target (url)"
-              id="url"
-              name="url"
-              label="Blog Target (url)"
-              value={data?.url || ""}
-              onChange={handleChange}
-              fullWidth
-              autoComplete="Blog Action (url)"
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12} mb={2}>
-            <TextEditor value={data?.description || ""} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Box>
-              <Typography variant="caption">Important Blog &nbsp;</Typography>
-              <ToggleButton
-                value={data?.isImportant}
-                selected={data?.isImportant}
-                onChange={() => {
-                  setData((prev) => ({ ...prev, isImportant: !data?.isImportant }));
-                }}
-              >
-                {data?.isImportant ? "Important" : "Not Important"}
-              </ToggleButton>
-            </Box>
-            <Typography variant="caption">
-              ( Important blogs will be shown in home page )
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="caption">
-              Blog Display Type *(applicable for important blogs)
-            </Typography>
-            <Select
-              name="type"
-              value={data?.type || ""}
-              onChange={handleChange}
-              fullWidth
-              variant="outlined"
-            >
-              <MenuItem value="1">Small size (title & subtitle)</MenuItem>
-              <MenuItem value="2">Medium size (title & short image)</MenuItem>
-              <MenuItem value="3">Large size (title & full height image)</MenuItem>
-            </Select>
-          </Grid>
-          <Grid item xs={12} sm={6} display={"flex"} justifyContent={"space-between"}>
-            <Box
-              sx={{
-                width: 200,
-                height: 110,
-                cursor: "pointer",
-                backgroundColor: "#D3D3D3",
-                "&:hover": {
-                  backgroundColor: "#424242",
-                  opacity: [0.9, 0.8, 0.7],
-                },
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-                borderRadius: "10px",
-                overflow: "hidden",
-              }}
-              onClick={handleFileSelect}
-            >
-              {data?.image ? (
-                <img
-                  style={{ width: 240, height: 192, padding: 22 }}
-                  src={
-                    typeof data?.image == "object"
-                      ? URL.createObjectURL(data.image)
-                      : `${process.env.REACT_APP_API_URL}/uploads/${data.image}`
-                  }
-                />
-              ) : (
-                <React.Fragment>
-                  <svg
-                    width="56"
-                    height="56"
-                    viewBox="0 0 56 56"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
+      <Box sx={{ flexGrow: 1, py: 3 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Box sx={styles.container}>
+            <Typography sx={styles.title}>Create New Blog Post</Typography>
+
+            <Grid container spacing={3}>
+              {/* Left Column: Details */}
+              <Grid item xs={12} md={7}>
+                <Typography sx={styles.sectionTitle}>Details</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Input
+                      required
+                      placeholder="Blog Title"
+                      name="title"
+                      value={data?.title || ""}
+                      onChange={handleChange}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Input
+                      required
+                      placeholder="Blog Subtitle"
+                      name="subtitle"
+                      value={data?.subtitle || ""}
+                      onChange={handleChange}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Input
+                      required
+                      placeholder="Target URL (e.g., top-10-properties)"
+                      name="url"
+                      value={data?.url || ""}
+                      onChange={handleChange}
+                      fullWidth
+                    />
+                  </Grid>
+                </Grid>
+
+                <Box mt={2}>
+                  <Typography sx={styles.sectionTitle}>Content</Typography>
+                  <TextEditor value={data?.description || ""} onChange={handleChange} />
+                </Box>
+              </Grid>
+
+              {/* Right Column: Settings & Image */}
+              <Grid item xs={12} md={5}>
+                <Typography sx={styles.sectionTitle}>Settings</Typography>
+
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Typography variant="body2" fontWeight="bold">Blog Status:</Typography>
+                  <ToggleButton
+                    value={data?.status}
+                    selected={data?.status}
+                    onChange={() => setData(prev => ({ ...prev, status: !data?.status }))}
+                    size="small"
+                    color="success"
+                    sx={{ borderRadius: "10px", padding: "5px 20px" }}
                   >
-                    <path
-                      d="M20.9994 51.3346H34.9994C46.666 51.3346 51.3327 46.668 51.3327 35.0013V21.0013C51.3327 9.33464 46.666 4.66797 34.9994 4.66797H20.9994C9.33268 4.66797 4.66602 9.33464 4.66602 21.0013V35.0013C4.66602 46.668 9.33268 51.3346 20.9994 51.3346Z"
-                      stroke="#CDCDCD"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                    {data?.status ? "Active" : "Blocked"}
+                  </ToggleButton>
+                </Box>
+
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Typography variant="body2" fontWeight="bold">Important:</Typography>
+                  <ToggleButton
+                    value={data?.isImportant}
+                    selected={data?.isImportant}
+                    onChange={() => setData(prev => ({ ...prev, isImportant: !data?.isImportant }))}
+                    size="small"
+                    color="warning"
+                    sx={{ borderRadius: "10px", padding: "5px 20px" }}
+                  >
+                    {data?.isImportant ? "Important" : "Standard"}
+                  </ToggleButton>
+                </Box>
+                {data?.isImportant && (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: 11, borderRadius: "10px" }}>
+                    Important blogs are featured on the homepage.
+                  </Alert>
+                )}
+
+                <Typography variant="body2" fontWeight="bold" mb={1}>Display Size:</Typography>
+                <Select
+                  name="type"
+                  value={data?.type || "1"}
+                  onChange={handleChange}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 3, background: "white", borderRadius: "10px" }}
+                >
+                  <MenuItem value="1">Small (Title & Subtitle)</MenuItem>
+                  <MenuItem value="2">Medium (Title & Image)</MenuItem>
+                  <MenuItem value="3">Large (Full Height Image)</MenuItem>
+                </Select>
+
+                <Typography sx={styles.sectionTitle}>Thumbnail</Typography>
+                <Box sx={styles.uploadBox} onClick={handleFileSelect}>
+                  {data?.image ? (
+                    <img
+                      style={{ maxWidth: "100%", maxHeight: 200, objectFit: "contain", borderRadius: "10px" }}
+                      src={typeof data?.image == "object" ? URL.createObjectURL(data.image) : data.image}
+                      alt="Preview"
                     />
-                    <path
-                      d="M21.0007 23.3333C23.578 23.3333 25.6673 21.244 25.6673 18.6667C25.6673 16.0893 23.578 14 21.0007 14C18.4233 14 16.334 16.0893 16.334 18.6667C16.334 21.244 18.4233 23.3333 21.0007 23.3333Z"
-                      stroke="#CDCDCD"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M6.23047 44.2186L17.7338 36.4953C19.5771 35.2586 22.2371 35.3986 23.8938 36.8219L24.6638 37.4986C26.4838 39.0619 29.4238 39.0619 31.2438 37.4986L40.9505 29.1686C42.7705 27.6053 45.7105 27.6053 47.5305 29.1686L51.3338 32.4353"
-                      stroke="#CDCDCD"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <Typography sx={{ mt: 1, fontSize: 13 }}>Upload Thumbnail</Typography>
-                </React.Fragment>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
-            </Box>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="caption">Blog status &nbsp;</Typography>
-            <Box>
-              <ToggleButton
-                value={data?.status}
-                selected={data?.status}
-                onChange={() => {
-                  setData((prev) => ({ ...prev, status: !data?.status }));
-                }}
-              >
-                {data?.status ? "Active" : "Blocked"}
-              </ToggleButton>
-            </Box>
-          </Grid>
-          <Grid item xs={12}>
-            <Button onClick={handleSubmit} disabled={isLoading}>
-              Add Blog
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Alert color="primary" severity="info" sx={{ mt: 3, fontSize: 13 }}>
-              <ul style={{ margin: "0", padding: "0" }}>
-                <li> Make your thumbnail 1280 by 720 pixels (4:5 ratio)</li>
-                <li>Ensure that your thumbnail is less than 2MB</li>
-                <li>Use a JPG, PNG, or JPEG file format</li>
-              </ul>
-            </Alert>
-          </Grid>
-        </Grid>
+                  ) : (
+                    <>
+                      <Box component="i" className="ni ni-cloud-upload-96" fontSize="40px" color="#aaa" mb={1} />
+                      <Typography variant="body2" color="textSecondary" fontWeight="bold">
+                        Upload Image
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        1280x720 (16:9)
+                      </Typography>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                  />
+                </Box>
+                <Alert color="info" severity="info" sx={{ mt: 2, fontSize: 11, borderRadius: "10px" }}>
+                  Max 2MB. JPG/PNG only.
+                </Alert>
+              </Grid>
+
+              {/* Submit Button */}
+              <Grid item xs={12} mt={1}>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                  variant="contained"
+                  color="info"
+                  fullWidth
+                  sx={{ py: 1.5, fontSize: "16px", borderRadius: "10px", boxShadow: "0 4px 14px 0 rgba(0,188,212,0.39)" }}
+                >
+                  {isLoading ? "Publishing..." : "Publish Blog Post"}
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        </motion.div>
       </Box>
     </PageLayout>
   );

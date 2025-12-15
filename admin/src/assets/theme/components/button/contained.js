@@ -78,6 +78,7 @@ const contained = {
 
   primary: {
     backgroundColor: info.main,
+    color: white.main,
 
     "&:hover": {
       backgroundColor: info.main,
@@ -101,6 +102,19 @@ const contained = {
       boxShadow: buttonBoxShadow.stateOfNotHover,
     },
   },
-};
 
+  info: {
+    backgroundColor: info.main,
+    color: white.main,
+
+    "&:hover": {
+      backgroundColor: info.main,
+    },
+
+    "&:focus:not(:hover)": {
+      backgroundColor: info.focus,
+      boxShadow: buttonBoxShadow.stateOfNotHover,
+    },
+  },
+};
 export default contained;
