@@ -1,5 +1,7 @@
 import request from "utils/request";
 
+const loginUser = async (data) => request('/auth/login', 'POST', data);
+const generateBlog = async (data) => request('/ai/generate-blog', 'POST', data);
 const addBlogs = async (data) => request(`/blogs`, 'POST', data)
 const editBlogs = async (data) => request(`/blogs`, 'PATCH', data)
 const deleteBlogs = async (data) => request(`/blogs/${data?._id}`, 'DELETE', data)
@@ -21,8 +23,8 @@ const updateBlogBanner = async (blogId, banner) => {
 };
 
 
-const editContact = async ({ userId, newStatus }) => request('/contact/update-status', 'PUT', {userId, newStatus})
-    
+const editContact = async ({ userId, newStatus }) => request('/contact/update-status', 'PUT', { userId, newStatus })
+
 const getContact = async ({ page, perPage, sortBy, order, search }) => {
   const queryParams = new URLSearchParams({
     page,
@@ -35,8 +37,8 @@ const getContact = async ({ page, perPage, sortBy, order, search }) => {
   const response = await request(`/contact/getAllContacts?${queryParams}`, 'GET');
   return response;
 };
-const editProjectEnquiry = async ({ userId, newStatus }) => request('/projectEnquiry/update-status', 'PUT', {userId, newStatus})
-    
+const editProjectEnquiry = async ({ userId, newStatus }) => request('/projectEnquiry/update-status', 'PUT', { userId, newStatus })
+
 const getProjectEnquiry = async ({ page, perPage, sortBy, order, search }) => {
   const queryParams = new URLSearchParams({
     page,
@@ -56,30 +58,32 @@ const deleteSection = async (data) => request(`/section/${data?._id}`, 'DELETE',
 const getSection = async (data) => request(`/section?page=${data?.pageNo}&perpageitems=${data?.pageCount}`, 'GET', data)
 const getSectionById = async (data) => request(`/section/${data?.id}`, 'GET', data)
 
-export {  
-    addBlogs,
-    editBlogs,
-    deleteBlogs,
-    getBlogs,
-    getBlogsById,
-    addBanners,
-    editBanners,
-    deleteBanners,
-    getBanners,
-    getBannersById,
-    getContact,
-    editContact,
-    getProjectEnquiry,
-    editProjectEnquiry,
-    addSection,
-    editSection,
-    deleteSection,
-    getSection,
-    getSectionById,
-    addTags,
-    editTags,
-    deleteTags,
-    getTags,
-    getTagsById,
-    updateBlogBanner
-  };
+export {
+  addBlogs,
+  editBlogs,
+  deleteBlogs,
+  getBlogs,
+  getBlogsById,
+  addBanners,
+  editBanners,
+  deleteBanners,
+  getBanners,
+  getBannersById,
+  getContact,
+  editContact,
+  getProjectEnquiry,
+  editProjectEnquiry,
+  addSection,
+  editSection,
+  deleteSection,
+  getSection,
+  getSectionById,
+  addTags,
+  editTags,
+  deleteTags,
+  getTags,
+  getTagsById,
+  updateBlogBanner,
+  loginUser,
+  generateBlog
+};

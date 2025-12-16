@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Grid, Typography } from "@mui/material";
 import PageLayout from "layouts/PageLayout";
 import Box from "components/Box";
-import { useGetProjectsById, useUpdateProjects, useGetSelectBuilders, useGetCategory } from "queries/ProductQuery";
+import { useGetProjectsById, useUpdateProjects, useGetSelectBuilders, useGetCategory, useGenerateProjectBlog } from "queries/ProductQuery";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Icons } from "components/Property/Icons.jsx";
@@ -16,8 +16,7 @@ import GallerySection from "./components/GallerySection";
 import AccommodationSection from "./components/AccommodationSection";
 import FaqSection from "./components/FaqSection";
 import ReviewSection from "./components/ReviewSection";
-import AiGeneratorModal from "./components/AiGeneratorModal";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+
 
 const EditProjects = () => {
   const navigate = useNavigate();
@@ -27,7 +26,7 @@ const EditProjects = () => {
 
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [selectedIconField, setSelectedIconField] = useState(null);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
+
 
   // These are managed locally here to pass to BasicDetails, matching AddProjects interface
   const [builder, setBuilders] = useState(null);
@@ -36,6 +35,8 @@ const EditProjects = () => {
   const { mutateAsync: updateProjects } = useUpdateProjects();
   const { data: categories, refetch: refetchCategories } = useGetCategory({ pageNo: 1, pageCount: 100 });
   const { data: builders, refetch: refetchBuilders } = useGetSelectBuilders({ pageNo: 1, pageCount: 100 });
+  const { mutateAsync: generateProjectBlog, isLoading: isGeneratingBlog } = useGenerateProjectBlog();
+  const { refetch: refetchProject } = useGetProjectsById({ id });
 
   useEffect(() => {
     if (data?.data) {
@@ -45,30 +46,7 @@ const EditProjects = () => {
     }
   }, [data]);
 
-  const handleAiData = (data) => {
-    setDetails(prev => ({
-      ...prev,
-      ...data.data,
-      features: data.data.features || prev.features,
-      faqs: data.data.faqs || prev.faqs,
-      accommodation: data.data.accommodation || prev.accommodation,
-      testimonials: data.data.expertOpinions ? prev.testimonials : prev.testimonials, // Logic matches AddProjects
-      masterPlan: data.data.masterPlan || prev.masterPlan,
-      imageGallery: data.data.imageGallery || prev.imageGallery,
-      plans: data.data.plans || prev.plans,
-    }));
-    if (data.categoryData) {
-      refetchCategories().then(() => {
-        setCategory(data.categoryData);
-      });
-    }
 
-    if (data.builderData) {
-      refetchBuilders().then(() => {
-        setBuilders(data.builderData);
-      });
-    }
-  };
 
   const handleChange = (e) => {
     setDetails((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -412,28 +390,50 @@ const EditProjects = () => {
             p: 4
           }}
         >
-          <Box display="flex" justifyContent="flex-end" mb={2}>
-            <Button
-              variant="contained"
-              color="info"
-              onClick={() => setAiModalOpen(true)}
-              sx={{
-                textTransform: "none",
-                fontWeight: 600,
-                px: 2.5,
-                py: 1,
-                borderRadius: "10px",
-                boxShadow: "0 4px 14px rgba(17, 205, 239, 0.25)",
-                "&:hover": {
-                  boxShadow: "0 6px 20px rgba(17, 205, 239, 0.35)",
-                  transform: "translateY(-1px)",
-                },
-                transition: "all 0.2s ease",
-              }}
-            >
-              AI Auto-Fill
-            </Button>
+          <Box display="flex" justifyContent="flex-end" mb={2} gap={2}>
+            {details?.blog ? (
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => navigate(`/blogs/editBlog/${details.blog._id || details.blog}`)}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: "10px",
+                }}
+              >
+                View Blog
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="info"
+                onClick={() => {
+                  toast.promise(
+                    generateProjectBlog({ projectId: id }).then(() => refetchProject()),
+                    {
+                      loading: 'Generating Blog...',
+                      success: 'Blog Generated!',
+                      error: 'Failed to generate blog',
+                    }
+                  );
+                }}
+                disabled={isGeneratingBlog}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: "10px",
+                }}
+              >
+                {isGeneratingBlog ? "Generating..." : "Generate Blog"}
+              </Button>
+            )}
           </Box>
+
 
 
           <Grid container spacing={5} display={"flex"} direction={"row"} px={2} pb={2}>
@@ -567,11 +567,7 @@ const EditProjects = () => {
         onClose={handleIconPickerClose}
         onSelectIcon={handleIconSelect}
       />
-      <AiGeneratorModal
-        open={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        onGenerate={handleAiData}
-      />
+
     </PageLayout>
   );
 };

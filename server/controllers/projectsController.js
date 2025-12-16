@@ -35,7 +35,8 @@ const getProjectById = async (req, res) => {
   try {
     const data = await Projects.findOne({ _id: req.params.id })
       .populate("category")
-      .populate("builder");
+      .populate("builder")
+      .populate("blog");
     res.status(200).json({ data, message: "projects found successfully" });
   } catch (error) {
     console.log(error.message);
@@ -49,7 +50,8 @@ const getProjectByUrl = async (req, res) => {
   try {
     const data = await Projects.findOne({ href: req.params.url })
       .populate("category")
-      .populate("builder");
+      .populate("builder")
+      .populate("blog");
     res.status(200).json({ data, message: "projects found successfully" });
   } catch (error) {
     console.log(error.message);

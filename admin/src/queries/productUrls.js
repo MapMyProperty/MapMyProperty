@@ -22,8 +22,10 @@ const addBuilders = async (data) => request(`/builders`, 'POST', data)
 
 const addProjects = async (data) => request(`/projects`, 'POST', data)
 const generateProjectAI = async (data) => request(`/ai/generate-project`, 'POST', data)
+const generateProjectBlog = async (data) => request(`/ai/generate-project-blog`, 'POST', data)
 const updateProjects = async (data) => request(`/projects`, 'PATCH', data)
 const updateBuilders = async (data) => request(`/builders`, 'PATCH', data)
+const deleteBuilders = async (data) => request(`/builders/${data?._id}`, 'DELETE', data)
 const deleteProjects = async (data) => request(`/projects/${data?._id}`, 'DELETE', data)
 const getProjectsById = async (data) => request(`/projects/${data?.id}`, 'GET', data)
 const getBuildersById = async (data) => request(`/builders/${data?.id}`, 'GET', data)
@@ -58,22 +60,24 @@ const getAnalytics = async () => request(`/analytics/dashboard-stats`, 'GET');
 
 export {
   addCategory,
-  getCategoryById,
   editCategory,
   deleteCategory,
+  getCategory,
+  getCategoryById,
+  getFilterCategory,
   addProjects,
   updateProjects,
   deleteProjects,
-  getCategory,
-  getFilterCategory,
   getProjects,
   getProjectsById,
   getSelectProjects,
   addBuilders,
+  updateBuilders,
+  deleteBuilders,
   getBuilders,
   getBuildersById,
-  updateBuilders,
   getSelectBuilders,
   generateProjectAI,
+  generateProjectBlog,
   getAnalytics
 };

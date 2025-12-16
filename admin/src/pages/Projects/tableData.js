@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Box, TextField, Pagination, MenuItem, Select, IconButton, Skeleton, Avatar } from "@mui/material";
-import { useGetProjects } from "queries/ProductQuery";
+import { useGetProjects, useDeleteProjects } from "queries/ProductQuery";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 
 // -- Styles --
 const styles = {
@@ -115,6 +116,7 @@ const TableData = () => {
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useGetProjects({ page, perPage, sortBy, order, search });
+  const { mutate: deleteProject, isLoading: isDeleting } = useDeleteProjects();
 
   const handlePageChange = (event, value) => {
     setPage(value);
@@ -266,6 +268,16 @@ const TableData = () => {
                     <Link to={`/projects/editProjects/${item?._id}`} style={styles.actionButton}>
                       <Box component="i" className="ni ni-settings-gear-65" fontWeight="bold" />
                     </Link>
+                    <div
+                      style={{ ...styles.actionButton, color: '#f44336', marginLeft: '8px' }}
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+                          deleteProject(item);
+                        }
+                      }}
+                    >
+                      <Box component="i" className="ni ni-fat-remove" fontWeight="bold" fontSize="16px" />
+                    </div>
                   </td>
                 </motion.tr>
               ))}

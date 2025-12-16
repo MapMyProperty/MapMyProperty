@@ -25,6 +25,9 @@ import {
     deleteTags,
     getTags,
     getTagsById,
+    updateUserRole,
+    loginUser,
+    generateBlog
 } from "./storeUrls";
 
 const useGetBlogs = (data) => {
@@ -304,16 +307,21 @@ const useDeleteTags = () => {
 };
 const useUpdateBlogBanner = () => {
     const queryClient = useQueryClient();
-  
+
     return useMutation(({ blogId, banner }) => updateBlogBanner(blogId, banner), {
-      onSuccess: () => {
-        queryClient.invalidateQueries("get_blogs");
-      },
-      onError: (error) => {
-        console.error("Error updating banner:", error);
-      },
+        onSuccess: () => {
+            queryClient.invalidateQueries("get_blogs");
+        },
+        onError: (error) => {
+            console.error("Error updating banner:", error);
+        },
     });
-  };
+};
+
+const useGenerateBlog = () => {
+    return useMutation((data) => generateBlog(data));
+};
+
 export {
     useUpdateBlogBanner,
     useGetBlogs,
@@ -340,5 +348,5 @@ export {
     useAddTags,
     useEditTags,
     useDeleteTags,
-    
+    useGenerateBlog
 };

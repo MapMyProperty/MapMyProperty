@@ -3,35 +3,76 @@ const Projects = require("../models/projects");
 const RawData = require("../models/rawData");
 const Category = require("../models/category");
 const Builders = require("../models/builders");
+const Blogs = require("../models/blogs");
 const cheerio = require("cheerio");
 
 // Helper function to call Perplexity AI
 const callPerplexityAI = async (prompt, systemMessage = "You are a helpful real estate data assistant. Output valid JSON only.") => {
-    const response = await axios.post(
-        "https://api.perplexity.ai/chat/completions",
-        {
-            model: "sonar-pro",
-            messages: [
-                { role: "system", content: systemMessage },
-                { role: "user", content: prompt },
-            ],
-        },
-        {
-            headers: {
-                "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-                "Content-Type": "application/json"
+    try {
+        const response = await axios.post(
+            "https://api.perplexity.ai/chat/completions",
+            {
+                model: "sonar-pro",
+                messages: [
+                    { role: "system", content: systemMessage },
+                    { role: "user", content: prompt },
+                ],
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+                    "Content-Type": "application/json"
+                }
             }
+        );
+
+        const aiContent = response.data.choices[0].message.content;
+
+        // Parse JSON from response
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+
+        let parsedData;
+        if (jsonMatch) {
+            parsedData = JSON.parse(jsonMatch[0]);
+        } else {
+            parsedData = JSON.parse(aiContent);
         }
-    );
-
-    const aiContent = response.data.choices[0].message.content;
-
-    // Parse JSON from response
-    const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        return cleanAIOutput(parsedData);
+    } catch (error) {
+        console.error("Perplexity API Error:", error.response?.data || error.message);
+        throw error;
     }
-    return JSON.parse(aiContent);
+};
+
+// Helper: Recursive cleaning function
+const cleanAIOutput = (data, keyName = null) => {
+    if (typeof data === 'string') {
+        let text = data
+            .replace(/\*\*\*/g, '')      // Remove triple asterisks
+            .replace(/\*\*/g, '')        // Remove double asterisks (bolds)
+            .replace(/\[\d+(?:,\s*\d+)*\]/g, '') // Remove citations like [1], [1, 2]
+            .replace(/\[\d+\]/g, '')     // Remove single citations like [1] just in case
+            .replace(/^\s*-\s*/, '')     // Remove leading hyphens
+            .replace(/^:\s*/, '')        // Remove leading colons
+            .replace(/^"|"$/g, '')       // Remove leading/trailing quotes
+            .trim();
+
+        // Specific cleaning for Expert Opinions: Remove HTML tags like <strong>
+        if (keyName === 'expertOpinions') {
+            text = text.replace(/<\/?[^>]+(>|$)/g, ""); // Strip all HTML tags
+        }
+
+        return text;
+    } else if (Array.isArray(data)) {
+        return data.map(item => cleanAIOutput(item, keyName)); // Pass parent key (e.g. 'expertOpinions')
+    } else if (typeof data === 'object' && data !== null) {
+        const cleaned = {};
+        for (const key in data) {
+            cleaned[key] = cleanAIOutput(data[key], key); // Pass current key
+        }
+        return cleaned;
+    }
+    return data;
 };
 
 // Helper function to scrape URL content
@@ -81,6 +122,52 @@ ${data.rawText}
     } else {
         return `Project Name: "${data.projectName}"${data.location ? `, Location: "${data.location}"` : ""}`;
     }
+};
+
+// Helper: Auto-Generate Blog for New Project
+const generateAndSaveProjectBlog = async (project, builder, location) => {
+    const builderName = builder?.title || "Reputed Builder";
+    const projectName = project.title;
+
+    const prompt = `
+Act as a Senior Real Estate Investment Analyst.
+Write a comprehensive "Review & Investment Analysis" blog post for the new Launch: "${projectName}" by ${builderName} in ${location}.
+
+Requirements:
+1. **Length**: MINIMUM 1000 words.
+2. **Focus**: Investment potential, location analysis, builder reputation, and lifestyle.
+3. **Format**: HTML content with <h2>, <h3>headers.
+4. **CTAs**: Include 3 embedded CTAs to "Schedule a Site Visit" or "Download Brochure".
+5. **SEO**: High-volume keywords for "${location} real estate" and "${projectName} review".
+
+Return ONLY a valid JSON object:
+{
+    "title": "High-Impact Blog Title",
+    "subtitle": "Engaging subtitle (20 words)",
+    "content": "Full HTML content...",
+    "tags": ["tag1", "tag2"]
+}
+`;
+
+    const aiData = await callPerplexityAI(prompt, "You are a real estate expert. Output valid JSON.");
+
+    // Determine Image (Use Project View or Master Plan)
+    const blogImage = project.imageGallery?.[0]?.src || project.masterPlan?.src || "https://placehold.co/800x600?text=Project+Review";
+
+    // Create Blog
+    const newBlog = await Blogs.create({
+        title: aiData.title,
+        subtitle: aiData.subtitle,
+        description: aiData.content, // 'description' field holds the html content in schema
+        image: blogImage,
+        url: aiData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(), // Unique URL
+        status: true, // Auto-publish as requested
+        type: "1", // Default type
+        isImportant: true // Highlight new launch reviews
+    });
+
+    console.log("Auto-Blog Created:", aiData.title);
+    return newBlog;
 };
 
 const generateProject = async (req, res) => {
@@ -185,12 +272,21 @@ IMPORTANT:
 - Description must be MINIMUM 250 words, rich with SEO keywords
 - Each expert opinion must be MINIMUM 40 words
 - Write professionally, avoid fluff
+- DO NOT USE MARKDOWN like **text**. Use HTML <strong>text</strong> if needed.
 `;
 
-        const stage2Data = await callPerplexityAI(
+        // Stage 2 cleaning handled by callPerplexityAI now
+        // let stage2Data = await callPerplexityAI(...) 
+        // No manual sanitation needed if callPerplexityAI does it.
+
+        let stage2Data = await callPerplexityAI(
             stage2Prompt,
             "You are a professional real estate content writer. Create detailed, SEO-optimized content. Output valid JSON only."
         );
+
+        // Ensure bold tags for HTML if needed, handled by Prompt instruction 
+        // (Prompt says: Use <strong> tags. Cleaner removes **).
+
         console.log("Stage 2 Complete: Description length:", stage2Data.description?.length);
 
         console.log("\n========== STAGE 3: Details ==========");
@@ -409,6 +505,15 @@ IMPORTANT:
             categoryData: categoryFullData
         });
 
+        // --- Auto Generate Blog ---
+        try {
+            console.log("\n========== AUTO-GENERATING BLOG ==========");
+            await generateAndSaveProjectBlog(newProject, builderFullData, mergedData.location);
+        } catch (blogErr) {
+            console.error("Auto-Blog Generation Failed:", blogErr.message);
+            // Non-blocking error, project is already created
+        }
+
     } catch (error) {
         console.error("AI Generation Error:", error.response?.data || error.message);
 
@@ -423,4 +528,114 @@ IMPORTANT:
     }
 };
 
-module.exports = { generateProject };
+const generateBlog = async (req, res) => {
+    try {
+        const { topic, tone = "professional", keywords } = req.body;
+
+        if (!topic) {
+            return res.status(400).json({ message: "Topic is required" });
+        }
+
+        if (!process.env.PERPLEXITY_API_KEY) {
+            return res.status(500).json({
+                message: "Server configuration error: PERPLEXITY_API_KEY is missing."
+            });
+        }
+
+        console.log(`Generating blog for topic: ${topic}`);
+
+        const prompt = `
+Act as a Senior Real Estate Content Strategist & SEO Specialist.
+Write a highly optimized, long-form blog post on the topic: "${topic}".
+
+Requirements:
+1. **Length**: MINIMUM 1000 words. Depth and value are critical.
+2. **SEO**: Use high-volume keywords naturally. Structure with clear <h2> and <h3> headers.
+3. **Tone**: ${tone}. Professional yet accessible.
+4. **CTAs**: Insert 2-3 strategic Call-to-Actions (CTAs) encouraging readers to "Explore properties", "Contact for consultation", or "View latest listings".
+5. **Format**: Return HTML content. Use bullet points. Use <strong> tags for bold text. DO NOT use markdown like ** text **.
+
+Keywords to include: ${keywords || "Real Estate, Property, Investment, ROI, Market Trends"}
+
+Return ONLY a valid JSON object with these fields:
+{
+    "title": "Catchy, High-CTR Title (60 chars max)",
+    "subtitle": "Compelling meta-description style subtitle (150-160 chars)",
+    "content": "Full HTML blog content. Start with an engaging hook. Body should have at least 4-5 key sections. End with a strong conclusion and final CTA.",
+    "metaTitle": "SEO Title",
+    "metaDescription": "SEO Description",
+    "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+}
+`;
+
+        let aiResponse = await callPerplexityAI(
+            prompt,
+            "You are an expert real estate content writer. Return ONLY valid JSON."
+        );
+
+        // Sanitization is now built into callPerplexityAI
+
+        console.log("Blog Generated:", aiResponse.title);
+
+        console.log("Blog Generated:", aiResponse.title);
+
+        res.status(200).json({
+            message: "Blog generated successfully!",
+            data: aiResponse
+        });
+
+    } catch (error) {
+        console.error("AI Blog Gen Error:", error.message);
+        res.status(500).json({ message: "Failed to generate blog. " + error.message });
+    }
+};
+
+const generateProjectBlog = async (req, res) => {
+    try {
+        const { projectId } = req.body;
+        if (!projectId) {
+            return res.status(400).json({ message: "Project ID is required" });
+        }
+
+        const project = await Projects.findById(projectId).populate('blog');
+        if (!project) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        if (project.blog) {
+            return res.status(200).json({ message: "Blog already exists", data: project.blog });
+        }
+
+        if (!process.env.PERPLEXITY_API_KEY) {
+            return res.status(500).json({
+                message: "Server configuration error: PERPLEXITY_API_KEY is missing."
+            });
+        }
+
+        // Fetch Builder for more context
+        const builder = await Builders.findById(project.builder);
+
+        // Generate Blog
+        console.log(`Generating blog for Project: ${project.title}`);
+        const newBlog = await generateAndSaveProjectBlog(project, builder, project.location);
+
+        if (newBlog) {
+            // Link to Project
+            project.blog = newBlog._id;
+            await project.save();
+
+            return res.status(200).json({
+                message: "Blog generated and linked successfully",
+                data: newBlog
+            });
+        } else {
+            return res.status(500).json({ message: "Failed to generate blog content." });
+        }
+
+    } catch (error) {
+        console.error("Generate Project Blog Error:", error);
+        res.status(500).json({ message: "Internal server error: " + error.message });
+    }
+};
+
+module.exports = { generateProject, generateBlog, generateProjectBlog };

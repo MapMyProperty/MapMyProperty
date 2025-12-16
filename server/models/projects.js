@@ -21,6 +21,10 @@ const projectsSchema = new mongoose.Schema(
       required: true,
       ref: "Builders",
     },
+    blog: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Blog",
+    },
     description: {
       type: String,
       required: true,

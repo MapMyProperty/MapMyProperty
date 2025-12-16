@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Box, TextField, Pagination, MenuItem, Select, IconButton, Skeleton, Card, CardContent, CardMedia, Typography, Chip, Grid, Switch } from "@mui/material";
+import { Box, TextField, Pagination, MenuItem, Select, IconButton, Skeleton, Card, CardContent, CardMedia, Typography, Chip, Grid, Switch, Button, Tooltip } from "@mui/material";
+import GenerateBlogModal from "./components/GenerateBlogModal";
 import { useGetBlogs, useUpdateBlogBanner } from "queries/StoreQuery";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -50,6 +51,10 @@ const styles = {
     "&:hover": {
       transform: "translateY(-5px)",
       boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+      "& .card-actions": {
+        opacity: 1,
+        bottom: 20
+      }
     }
   },
   cardMedia: {
@@ -63,24 +68,32 @@ const styles = {
     justifyContent: "space-between"
 
   },
-  actionButton: {
-    background: "rgba(255, 255, 255, 0.9)",
-    borderRadius: "50%",
-    width: 35,
-    height: 35,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#666",
-    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-    textDecoration: "none",
+  cardActionsOverlay: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    transition: "all 0.2s",
+    bottom: -50,
+    left: 0,
+    right: 0,
+    background: "rgba(255, 255, 255, 0.95)",
+    backdropFilter: "blur(5px)",
+    padding: "10px",
+    display: "flex",
+    justifyContent: "space-around",
+    alignItems: "center",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+    opacity: 0,
+    zIndex: 10
+  },
+  actionBtn: {
+    minWidth: 40,
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    padding: 0,
+    border: "1px solid rgba(0,0,0,0.05)",
     "&:hover": {
-      background: "#fff",
-      color: "#11cdef",
+      background: "#344767",
+      color: "#fff",
+      transform: "scale(1.1)"
     }
   },
   badge: (isActive) => ({
@@ -100,6 +113,7 @@ const TableData = () => {
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
   const [search, setSearch] = useState("");
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const { data, isLoading } = useGetBlogs({ page, perPage, sortBy, order, search });
   const { mutate: updateBanner } = useUpdateBlogBanner();
@@ -140,6 +154,16 @@ const TableData = () => {
           sx={styles.searchField}
         />
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Button
+            variant="contained"
+            color="info"
+            size="small"
+            startIcon={<Box component="i" className="ni ni-bulb-61" />}
+            onClick={() => setAiModalOpen(true)}
+            sx={{ color: "#fff", fontWeight: "bold" }}
+          >
+            Auto Generate w/ AI
+          </Button>
           <Select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -182,9 +206,30 @@ const TableData = () => {
                 <Grid item xs={12} sm={6} md={4} lg={4} xl={3} key={item._id}>
                   <motion.div variants={itemVariants} style={{ height: "100%" }}>
                     <Card sx={styles.card}>
-                      <Link to={`/blogs/editBlog/${item?._id}`} style={styles.actionButton}>
-                        <Box component="i" className="ni ni-settings-gear-65" fontSize="16px" fontWeight="bold" />
-                      </Link>
+                      <Box className="card-actions" sx={styles.cardActionsOverlay}>
+                        <Tooltip title="View Live">
+                          <IconButton
+                            component="a"
+                            href={`/blogs/${item?.href || item?._id}`} // Assuming client route structure
+                            target="_blank"
+                            size="small"
+                            sx={{ ...styles.actionBtn, color: "#11cdef", background: "#f8f9fa" }}
+                          >
+                            <Box component="i" className="ni ni-glasses-2" fontSize="14px" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Live Edit">
+                          <IconButton
+                            component={Link}
+                            to={`/blogs/editBlog/${item?._id}`}
+                            size="small"
+                            sx={{ ...styles.actionBtn, color: "#2dce89", background: "#f8f9fa" }}
+                          >
+                            <Box component="i" className="ni ni-ruler-pencil" fontSize="14px" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
 
                       <CardMedia
                         component="img"
@@ -248,6 +293,7 @@ const TableData = () => {
           shape="rounded"
         />
       </Box> */}
+      <GenerateBlogModal open={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, TextField, Pagination, MenuItem, Select, IconButton, Skeleton, Avatar } from "@mui/material";
-import { useGetBuilders } from "queries/ProductQuery";
+import { useGetBuilders, useDeleteBuilders } from "queries/ProductQuery";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -103,6 +103,7 @@ const TableData = () => {
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useGetBuilders({ page, perPage, sortBy, order, search });
+  const { mutate: deleteBuilder, isLoading: isDeleting } = useDeleteBuilders();
 
   const handlePageChange = (event, value) => {
     setPage(value);
@@ -254,6 +255,16 @@ const TableData = () => {
                     <Link to={`/builders/editBuilders/${item?._id}`} style={styles.actionButton}>
                       <Box component="i" className="ni ni-settings-gear-65" fontWeight="bold" />
                     </Link>
+                    <div
+                      style={{ ...styles.actionButton, color: '#f44336', marginLeft: '8px' }}
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this builder? This action cannot be undone.")) {
+                          deleteBuilder(item);
+                        }
+                      }}
+                    >
+                      <Box component="i" className="ni ni-fat-remove" fontWeight="bold" fontSize="16px" />
+                    </div>
                   </td>
                 </motion.tr>
               ))}

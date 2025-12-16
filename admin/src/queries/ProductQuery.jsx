@@ -7,6 +7,7 @@ import {
   deleteCategory,
   addProjects,
   deleteProjects,
+  deleteBuilders,
   getCategory,
   getProjectsById,
   getProjects,
@@ -17,7 +18,8 @@ import {
   getSelectBuilders,
   getBuildersById,
   updateBuilders,
-  generateProjectAI
+  generateProjectAI,
+  generateProjectBlog
 } from "./productUrls";
 
 const useGetCategory = (data) => {
@@ -163,6 +165,21 @@ const useGenerateProjectAI = () => {
   });
 };
 
+const useGenerateProjectBlog = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation((data) => generateProjectBlog(data), {
+    onSuccess: (data) => {
+      // Invalidate fetching projects so the blog link is updated
+      queryClient.invalidateQueries("get_Projects");
+      return data;
+    },
+    onError: (data) => {
+      return data;
+    },
+  });
+};
+
 const useUpdateProjects = () => {
   const queryClient = useQueryClient();
 
@@ -203,6 +220,20 @@ const useDeleteProjects = () => {
   });
 };
 
+const useDeleteBuilders = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation((data) => deleteBuilders(data), {
+    onSuccess: (data) => {
+      queryClient.invalidateQueries("get_Builders");
+      return data;
+    },
+    onError: (data) => {
+      return data;
+    },
+  });
+};
+
 const useGetSelectProjects = (data) => {
   return useQuery(["get_Projects", data], () => getSelectProjects(data), {
     staleTime: 3000,
@@ -224,10 +255,12 @@ export {
   useAddProjects,
   useUpdateProjects,
   useDeleteProjects,
+  useDeleteBuilders,
   useGetSelectProjects,
   useAddBuilders,
   useGetBuilders,
   useUpdateBuilders,
   useGetSelectBuilders,
-  useGenerateProjectAI
+  useGenerateProjectAI,
+  useGenerateProjectBlog
 };
