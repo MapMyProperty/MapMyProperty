@@ -3,7 +3,16 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ["localhost", "www.server.mapmyproperty.in"],
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
+      {
+        protocol: "https",
+        hostname: "www.server.mapmyproperty.in",
+      },
+    ],
   },
   webpack: (config) => {
     config.resolve.alias["next/image"] = path.resolve(__dirname, "components/ui/CustomImage.tsx");
